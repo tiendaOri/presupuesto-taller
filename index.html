@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Presupuesto de Taller</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: cabecera fija con total siempre visible y cuatro pestañas (Guardados, Piezas, Presupuesto, Precios). Estética de taller: verde pino, amarillo de lápiz de carpintero, tipografía condensada de rotulación. Pensada para el móvil. */
+:root{
+  --bg:#EDEFEA; --surface:#FAFBF8; --field:#FFFFFF; --ink:#1B221E; --muted:#5A665E; --line:#D3D9CF;
+  --accent:#2E6A4C; --accent-ink:#FFFFFF; --hl:#E9B93B; --hl-ink:#1B221E;
+  --piece:#CDE3D4; --waste:#E3E5DC; --warn:#A84A12; --danger:#B3261E; --warn-bg:#F7E6D6;
+  --head:'Barlow Condensed','Arial Narrow',system-ui,sans-serif; --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121714; --surface:#1A211D; --field:#111613; --ink:#E7ECE6; --muted:#98A59C; --line:#2E3832;
+  --accent:#6FBF94; --accent-ink:#0E1511; --hl:#D9A92E; --piece:#2A4A3C; --waste:#222A25; --warn:#E58B52; --danger:#F0857D; --warn-bg:#3A2A1E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121714; --surface:#1A211D; --field:#111613; --ink:#E7ECE6; --muted:#98A59C; --line:#2E3832;
+  --accent:#6FBF94; --accent-ink:#0E1511; --hl:#D9A92E; --piece:#2A4A3C; --waste:#222A25; --warn:#E58B52; --danger:#F0857D; --warn-bg:#3A2A1E; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--head);font-weight:600;margin:0;letter-spacing:.02em}
+button{font:inherit;color:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:6px;height:40px;padding:0 10px;width:100%;min-width:0}
+textarea{height:auto;padding:10px;resize:vertical}
+input[type=checkbox]{width:20px;height:20px;padding:0;accent-color:var(--accent);flex:none}
+input[type=file]{height:auto;padding:8px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--head);font-size:24px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;min-width:0}
+.brand svg{flex:none;color:var(--accent)}
+.tot{display:flex;align-items:baseline;gap:10px;background:var(--hl);color:var(--hl-ink);padding:6px 14px;border-radius:6px;flex:none}
+.tot span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.tot strong{font-family:var(--head);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.tab{background:none;border:0;border-bottom:3px solid transparent;padding:9px 12px;font-family:var(--head);font-size:19px;font-weight:600;letter-spacing:.03em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+
+main{padding-block:20px 80px;display:flex;flex-direction:column;gap:20px}
+section.tabpane{display:flex;flex-direction:column;gap:20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.panel>h2{font-size:22px;margin-bottom:4px}
+.sub{color:var(--muted);margin:0 0 14px;max-width:70ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f>span{font-size:12px;color:var(--muted);letter-spacing:.03em}
+.btn{border:1px solid var(--line);background:var(--field);border-radius:6px;padding:0 14px;height:40px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.danger{color:var(--danger)}
+.btn.sm{height:34px;padding:0 10px;font-size:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.icon-btn{flex:none;width:40px;height:40px;border:1px solid transparent;background:none;border-radius:6px;font-size:22px;line-height:1;color:var(--muted)}
+.icon-btn:hover{color:var(--danger);border-color:var(--line)}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:10px 12px;font-size:14px}
+.note.info{background:var(--piece);color:var(--ink)}
+.small{font-size:13px;color:var(--muted)}
+
+/* guardados */
+.brow{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.brow:first-of-type{border-top:1px solid var(--line)}
+.b-main{flex:1 1 220px;min-width:0;display:flex;flex-direction:column}
+.b-main b{font-size:16px;overflow-wrap:anywhere}
+.b-main>span{color:var(--muted);font-size:13px}
+.b-tot{font-family:var(--head);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;flex:0 0 auto}
+.b-act{display:flex;gap:8px;flex-wrap:wrap}
+.cur{display:inline-block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;background:var(--hl);color:var(--hl-ink);border-radius:4px;padding:1px 6px;margin-left:8px;font-weight:600;vertical-align:middle}
+
+/* piezas */
+.line{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end;padding:14px 0;border-bottom:1px solid var(--line)}
+.line:first-of-type{border-top:1px solid var(--line)}
+.f-name{flex:1 1 170px}.f-mat{flex:1.3 1 210px}.f-dim{flex:0 0 92px}.f-qty{flex:0 0 84px}.f-mode{flex:0 0 170px}
+.f-info{flex:0 0 118px}
+.f-info b{font-variant-numeric:tabular-nums;font-weight:500;line-height:40px;white-space:nowrap}
+.f-info.bad{flex:1 1 200px}
+.f-info.bad b{color:var(--warn);font-size:12px;line-height:1.25;white-space:normal;padding-block:2px}
+.mini{display:flex;gap:10px;align-items:flex-end;padding:10px 0;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.mini .f-name{flex:1 1 200px}.mini .f-dim{flex:0 0 112px}
+.sublist{display:flex;flex-direction:column}
+.cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px}
+.cols2 h3{font-size:18px;margin-bottom:6px}
+.wizbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+
+/* precios */
+.mrow{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end;padding:14px 0;border-bottom:1px solid var(--line)}
+.mrow .f-name{flex:1.4 1 220px}.mrow .f-kind{flex:0 0 160px}.mrow .f-sm{flex:0 0 104px}.mrow .f-price{flex:0 0 124px}
+.chk{display:flex;align-items:center;gap:8px;height:40px;font-size:14px;flex:0 0 auto}
+.logo-box{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.logo-box img{max-height:64px;max-width:160px;border:1px solid var(--line);border-radius:6px;background:#fff;padding:4px}
+details.cat{border-top:1px solid var(--line);padding:10px 0}
+details.cat summary{cursor:pointer;font-weight:600;font-size:16px}
+details.cat summary small{color:var(--muted);font-weight:400;margin-left:8px}
+.crow{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px dashed var(--line)}
+.crow:last-child{border-bottom:0}
+.c-main{flex:1 1 220px;min-width:0;display:flex;flex-direction:column}
+.c-main span{font-size:13px;color:var(--muted)}
+
+/* presupuesto */
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;align-items:start}
+.quote{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.q-head{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:12px}
+.q-head h2{font-size:30px;text-transform:uppercase}
+.q-head p{margin:2px 0 0;color:var(--muted)}
+.q-meta{text-align:right;font-size:14px;color:var(--muted)}
+.sum{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.sum td{padding:7px 0;border-bottom:1px solid var(--line)}
+.sum td:last-child{text-align:right;white-space:nowrap;padding-left:12px}
+.sum tr.tt td{border-bottom:0;font-family:var(--head);font-size:26px;font-weight:700;padding-top:12px}
+.sum tr.sub td{color:var(--muted)}
+.sum tr.gain td{color:var(--accent);font-weight:600}
+.tblw{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:520px}
+.tbl th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--ink)}
+.tbl td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl .r{text-align:right;white-space:nowrap}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;background:var(--piece)}
+.pill.low{background:var(--warn-bg);color:var(--warn)}
+details.cut{border-top:1px solid var(--line);padding:10px 0}
+details.cut summary{cursor:pointer;font-weight:600}
+details.cut summary small{font-weight:400;color:var(--muted);margin-left:8px}
+.boards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:12px}
+.bcap{font-size:13px;color:var(--muted);margin:0 0 4px}
+svg.cut{width:100%;height:auto;display:block}
+.bd{fill:var(--waste);stroke:var(--muted);stroke-width:1;vector-effect:non-scaling-stroke}
+.pc{fill:var(--piece);stroke:var(--accent);stroke-width:1;vector-effect:non-scaling-stroke}
+.pt{fill:var(--ink);font-family:var(--body);text-anchor:middle;dominant-baseline:central}
+.copybox textarea{height:180px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:40;font-weight:500;max-width:90vw;text-align:center}
+@media (prefers-reduced-motion:no-preference){.toast{animation:up .2s ease-out}@keyframes up{from{opacity:0;transform:translate(-50%,8px)}}}
+@media (max-width:700px){input,select,textarea{font-size:16px;height:44px}textarea{height:auto}input[type=checkbox]{height:22px;width:22px}.btn{height:44px}.btn.sm{height:38px}.icon-btn{height:44px;width:44px}}
+@media (max-width:520px){.top-in{padding-block:8px}.brand{font-size:18px}.brand svg{width:22px;height:22px}.tot{padding:4px 10px}.tot span{display:none}.tot strong{font-size:22px}.tab{padding:9px 10px;font-size:17px}.panel{padding:14px}.quote{padding:16px}.q-head h2{font-size:26px}.f-mode{flex:1 1 100%}}
+</style>
+<meta name="description" content="Calculadora de presupuestos para carpintería">
+<meta name="theme-color" content="#2E6A4C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Presupuestos">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>:root{color-scheme:light dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="top-in">
+      <div class="brand">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="8" width="22" height="10" rx="1.5"/><path d="M7 8v4M12 8v6M17 8v4"/></svg>
+        <span>Presupuesto de taller</span>
+      </div>
+      <div class="tot" aria-live="polite"><span>Total con IVA</span><strong id="hdrTotal">0,00 €</strong></div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button class="tab" role="tab" id="t-guardados" data-tab="guardados">Guardados</button>
+      <button class="tab" role="tab" id="t-piezas" data-tab="piezas">Piezas</button>
+      <button class="tab" role="tab" id="t-presupuesto" data-tab="presupuesto">Presupuesto</button>
+      <button class="tab" role="tab" id="t-precios" data-tab="precios">Precios</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ================= GUARDADOS ================= -->
+<section class="tabpane" id="tab-guardados" hidden>
+  <div class="panel">
+    <details>
+      <summary style="cursor:pointer;font-family:var(--head);font-size:20px;font-weight:600;letter-spacing:.02em">Cómo se usa en 5 pasos</summary>
+      <ol style="margin:12px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:70ch">
+        <li>En <b>Precios</b>, pon tu nombre, tu logo y tu tarifa por hora, y ajusta los precios de tus materiales.</li>
+        <li>Pulsa <b>+ Nuevo presupuesto</b> y rellena el cliente y el trabajo en <b>Piezas</b>.</li>
+        <li>Usa un asistente (armario, cajonera, mesa, suelo) o añade las piezas una a una con sus medidas.</li>
+        <li>Añade la mano de obra, por horas o por pieza, y los gastos extra.</li>
+        <li>En <b>Presupuesto</b> verás el total, lo que hay que comprar y cómo cortar. Descarga el PDF para el cliente.</li>
+      </ol>
+      <p class="small" style="margin:12px 0 0;max-width:70ch"><b>Para tenerla como una app en el móvil:</b> en Android (Chrome), menú ⋮ y "Instalar aplicación". En iPhone (Safari), botón Compartir y "Añadir a pantalla de inicio". Úsala siempre desde ese icono, para que no se separen los datos.</p>
+    </details>
+  </div>
+  <div class="panel">
+    <h2>Mis presupuestos</h2>
+    <p class="sub">Aquí quedan todos los presupuestos. Abre uno para mirarlo o añadirle piezas. Se guardan en este móvil.</p>
+    <div id="savedList"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" data-act="new-budget">+ Nuevo presupuesto</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PIEZAS ================= -->
+<section class="tabpane" id="tab-piezas" hidden>
+  <div id="exampleNote" class="note info" hidden>
+    Este es un ejemplo ya relleno (un armario de dos puertas) para que veas cómo funciona. Cambia las medidas o crea uno nuevo en la pestaña <b>Guardados</b>. Los precios son orientativos: ajústalos en <b>Precios</b>.
+  </div>
+
+  <div class="panel">
+    <h2>Datos del trabajo <span id="refTag" class="small" style="font-family:var(--body);font-weight:400"></span></h2>
+    <p class="sub">Las medidas de esta pantalla usan la unidad que elijas aquí.</p>
+    <div class="grid">
+      <label class="f"><span>Cliente</span><input id="p-cliente" data-p="cliente" autocomplete="off"></label>
+      <label class="f"><span>Obra o nombre del mueble</span><input id="p-obra" data-p="obra" autocomplete="off"></label>
+      <label class="f"><span>Fecha</span><input id="p-fecha" data-p="fecha" type="date"></label>
+      <label class="f"><span>Medidas en</span>
+        <select id="p-unit"><option value="cm">centímetros (cm)</option><option value="m">metros (m)</option><option value="mm">milímetros (mm)</option></select>
+      </label>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <label class="f" style="grid-column:1/-1"><span>Descripción para el cliente (sale en el PDF)</span><textarea id="p-desc" data-p="desc" rows="3" placeholder="Ej: Armario empotrado de 2 puertas correderas en aglomerado melaminado blanco, con 3 baldas y barra de colgar."></textarea></label>
+      <label class="f"><span>Qué enseña el PDF</span>
+        <select id="p-pdfMode" data-p="pdfMode"><option value="desglose">Materiales, mano de obra y otros</option><option value="total">Solo el total</option></select>
+      </label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Asistentes de mueble</h2>
+    <p class="sub">Escribes las medidas y se rellenan solas todas las piezas, los herrajes y el canto. Después puedes retocar cada línea.</p>
+    <div class="wizbtns">
+      <button class="btn primary" data-act="wiz" data-wiz="armario">Armario o estantería</button>
+      <button class="btn primary" data-act="wiz" data-wiz="cajonera">Cajonera o mueble bajo</button>
+      <button class="btn primary" data-act="wiz" data-wiz="mesa">Mesa</button>
+      <button class="btn" data-act="wiz" data-wiz="suelo">Suelo y rodapié</button>
+    </div>
+    <div id="wizardBox" style="margin-top:16px" hidden></div>
+  </div>
+
+  <div class="panel">
+    <h2>Piezas y materiales</h2>
+    <p class="sub">Una línea por pieza. Elige el material y escribe las medidas: la web calcula cuántos tableros o barras hay que comprar aprovechando los cortes.</p>
+    <div id="lines"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" data-act="add-line">+ Añadir pieza</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Mano de obra y otros gastos</h2>
+    <div class="cols2">
+      <div>
+        <h3>Mano de obra</h3>
+        <p class="small" style="margin:0 0 6px">Cobra por horas, por pieza o por mueble, o mezcla las dos formas.</p>
+        <div class="sublist" id="laborList"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" data-act="add-labor-h">+ Horas</button>
+          <button class="btn" data-act="add-labor-u">+ Precio por pieza</button>
+        </div>
+      </div>
+      <div>
+        <h3>Otros gastos</h3>
+        <p class="small" style="margin:0 0 6px">Transporte, gestión de residuos, desplazamientos…</p>
+        <div class="sublist" id="extraList"></div>
+        <button class="btn" data-act="add-extra" style="margin-top:10px">+ Añadir gasto</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PRESUPUESTO ================= -->
+<section class="tabpane" id="tab-presupuesto" hidden>
+  <div class="two">
+    <div id="quote"></div>
+    <div class="panel" id="shopCosts"></div>
+  </div>
+  <div class="panel">
+    <h2>Para el cliente</h2>
+    <p class="sub">El PDF lleva tu nombre, tu logo y los datos de la pestaña Precios. No incluye tu beneficio.</p>
+    <div class="row">
+      <button class="btn primary" data-act="pdf">Descargar PDF</button>
+      <button class="btn" data-copy="client">Copiar texto</button>
+    </div>
+    <p id="pdfMsg" class="small" style="margin-top:10px" aria-live="polite"></p>
+    <div class="copybox" id="copyBox" hidden style="margin-top:14px">
+      <p class="small" style="margin:0 0 6px">Tu navegador no deja copiar solo. Selecciona el texto y cópialo.</p>
+      <textarea id="copyArea" readonly></textarea>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Lista de compra</h2>
+    <p class="sub">Lo que hay que pedir al proveedor, con la cantidad ya redondeada a tableros, barras o cajas completas.</p>
+    <div class="tblw" id="shopTable"></div>
+    <div class="row" style="margin-top:14px"><button class="btn" data-copy="shop">Copiar lista de compra</button></div>
+  </div>
+  <div class="panel">
+    <h2>Lista de corte</h2>
+    <p class="sub">Cómo colocar las piezas en cada tablero o barra para gastar lo mínimo. Incluye el grosor del disco de sierra.</p>
+    <div id="cuts"></div>
+    <div class="row" style="margin-top:14px"><button class="btn" data-copy="cut">Copiar lista de corte</button></div>
+  </div>
+</section>
+
+<!-- ================= PRECIOS ================= -->
+<section class="tabpane" id="tab-precios" hidden>
+  <div class="panel">
+    <h2>Tu empresa</h2>
+    <p class="sub">Estos datos salen en la cabecera del PDF para el cliente.</p>
+    <div class="grid">
+      <label class="f"><span>Nombre o empresa</span><input id="c-name" data-c="name" autocomplete="off"></label>
+      <label class="f"><span>NIF / CIF</span><input id="c-nif" data-c="nif" autocomplete="off"></label>
+      <label class="f"><span>Teléfono</span><input id="c-phone" data-c="phone" inputmode="tel" autocomplete="off"></label>
+      <label class="f"><span>Correo</span><input id="c-email" data-c="email" inputmode="email" autocomplete="off"></label>
+      <label class="f" style="grid-column:1/-1"><span>Condiciones (salen al pie del PDF)</span><textarea id="c-notes" data-c="notes" rows="3" placeholder="Ej: Presupuesto válido 30 días. Pago: 50 % al aceptar y 50 % al terminar."></textarea></label>
+    </div>
+    <div class="logo-box" style="margin-top:14px">
+      <img id="logoPrev" alt="Tu logo" hidden>
+      <label class="f" style="flex:1 1 240px"><span>Logo (una foto o imagen)</span><input id="c-logo" type="file" accept="image/*"></label>
+      <button class="btn danger" id="btnLogoDel" data-act="logo-del" hidden>Quitar logo</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Ajustes</h2>
+    <p class="sub">Estos valores se aplican a todos los presupuestos.</p>
+    <div class="grid">
+      <label class="f"><span>Tarifa por hora (€)</span><input id="s-rate" data-s="rate" inputmode="decimal"></label>
+      <label class="f"><span>Beneficio sobre costes (%)</span><input id="s-margin" data-s="margin" inputmode="decimal"></label>
+      <label class="f"><span>IVA (%)</span><input id="s-iva" data-s="iva" inputmode="decimal"></label>
+      <label class="f"><span>Merma en suelos y m² (%)</span><input id="s-waste" data-s="waste" inputmode="decimal"></label>
+      <label class="f"><span>Grosor del corte de sierra (mm)</span><input id="s-kerf" data-s="kerf" inputmode="decimal"></label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Mis materiales y precios</h2>
+    <div class="note" style="margin-bottom:12px">Los precios de fábrica son de ejemplo. Cámbialos por los de tu proveedor.</div>
+    <label class="f" style="margin-bottom:6px"><span>Buscar en mi lista</span><input id="m-filter" type="search" placeholder="Ej: aglomerado, DM, bisagra" autocomplete="off"></label>
+    <div id="matList"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" data-act="add-mat">+ Añadir material vacío</button>
+      <button class="btn danger" id="btnReset" data-act="reset-mats">Restaurar los de ejemplo</button>
+    </div>
+    <p id="matMsg" class="small" style="margin-top:10px" aria-live="polite"></p>
+  </div>
+
+  <div class="panel">
+    <h2>Copia de seguridad</h2>
+    <p class="sub">Tus presupuestos, precios y logo solo están en este móvil. Guarda una copia de vez en cuando, y sobre todo antes de cambiar de móvil o borrar los datos del navegador.</p>
+    <div class="row">
+      <button class="btn primary" data-act="backup">Guardar copia</button>
+      <label class="f" style="flex:1 1 240px"><span>Restaurar una copia (sustituye lo que hay ahora)</span><input id="b-restore" type="file" accept=".json,application/json"></label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Catálogo de materiales</h2>
+    <p class="sub">Todos los tipos de tablero, listón, herraje y acabado que se usan en carpintería. Pulsa Añadir y ponle tu precio.</p>
+    <div id="catalog"></div>
+  </div>
+</section>
+
+</main>
+<div id="toast" class="toast" hidden></div>
+
+<script src="jspdf.umd.min.js"></script>
+<script>
+(function(){
+'use strict';
+const KEY='presupuesto_taller_v2',OLDKEY='presupuesto_taller_v1';
+const UNITS={mm:1,cm:10,m:1000};
+const KINDS={board:'Tablero',bar:'Listón / barra',area:'Por m² (suelos…)',unit:'Por unidad / metro'};
+const $=(s,r)=>(r||document).querySelector(s);
+const $$=(s,r)=>Array.from((r||document).querySelectorAll(s));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const r2=x=>Math.round((x+Number.EPSILON)*100)/100;
+const eur=n=>n.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+const n2=n=>n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+const n1=n=>n.toLocaleString('es-ES',{maximumFractionDigits:1});
+const pl=(n,a,b)=>n===1?a:b;
+const parseNum=s=>{const n=parseFloat(String(s).replace(',','.'));return isFinite(n)?n:0};
+const today=()=>new Date().toISOString().slice(0,10);
+
+/* ---------- catálogo de materiales de carpintería ---------- */
+/* board: [nombre,'board',precio €/tablero,largo mm,ancho mm,grosor mm] · bar: [nombre,'bar',precio,largo barra mm]
+   area: [nombre,'area',precio €/m²,m² por caja] · unit: [nombre,'unit',precio,unidad] */
+const CATALOG=[
+ {cat:'Aglomerado',items:[
+  ['Aglomerado crudo 16 mm','board',12,2440,1220,16],
+  ['Aglomerado crudo 19 mm','board',14.5,2440,1220,19],
+  ['Aglomerado crudo 22 mm','board',17,2440,1220,22],
+  ['Aglomerado hidrófugo 19 mm','board',25,2440,1220,19],
+  ['Aglomerado melaminado blanco 10 mm','board',17,2440,1830,10],
+  ['Aglomerado melaminado blanco 16 mm','board',24.5,2440,1830,16],
+  ['Aglomerado melaminado blanco 19 mm','board',29,2440,1830,19],
+  ['Aglomerado melaminado blanco 25 mm','board',38,2440,1830,25],
+  ['Aglomerado melaminado color liso 19 mm','board',36,2440,1830,19],
+  ['Aglomerado melaminado imitación madera 19 mm','board',42,2440,1830,19],
+  ['Aglomerado chapado en roble 19 mm','board',60,2440,1220,19]]},
+ {cat:'DM / MDF',items:[
+  ['DM crudo 8 mm','board',11,2440,1220,8],
+  ['DM crudo 12 mm','board',16,2440,1220,12],
+  ['DM crudo 16 mm','board',20,2440,1220,16],
+  ['DM crudo 19 mm','board',24,2440,1220,19],
+  ['DM crudo 22 mm','board',28,2440,1220,22],
+  ['DM hidrófugo 19 mm','board',38,2440,1220,19],
+  ['DM lacado blanco 19 mm','board',55,2440,1220,19],
+  ['DM melaminado blanco 16 mm','board',30,2440,1220,16]]},
+ {cat:'Contrachapado',items:[
+  ['Contrachapado de chopo 10 mm','board',22,2440,1220,10],
+  ['Contrachapado de chopo 15 mm','board',30,2440,1220,15],
+  ['Contrachapado de chopo 18 mm','board',36,2440,1220,18],
+  ['Contrachapado de abedul 15 mm','board',62,2500,1250,15],
+  ['Contrachapado de abedul 18 mm','board',78,2500,1250,18],
+  ['Contrachapado de okume 18 mm','board',85,2440,1220,18],
+  ['Contrachapado de pino 18 mm','board',52,2440,1220,18],
+  ['Contrachapado fenólico (film) 18 mm','board',88,2500,1250,18]]},
+ {cat:'Otros tableros y laminados',items:[
+  ['OSB 18 mm','board',16,2440,1220,18],
+  ['Tablero alistonado de pino 19 mm','board',72,2500,1220,19],
+  ['Laminado compacto HPL 6 mm','board',145,3050,1300,6],
+  ['Laminado decorativo HPL 0,8 mm','board',35,3050,1300,1],
+  ['Encimera laminada 38 mm','board',68,3000,600,38],
+  ['Trasera DM 3 mm','board',7.5,2440,1220,3],
+  ['Trasera aglomerado melaminado blanco 3 mm','board',10,2440,1220,3]]},
+ {cat:'Listones, rodapiés y perfiles',items:[
+  ['Listón de pino 45×45 mm','bar',7.8,3000],
+  ['Listón de pino 20×40 mm','bar',2.6,2400],
+  ['Rastrel de pino 30×40 mm','bar',4.2,2400],
+  ['Listón de abeto 70×40 mm','bar',6.5,3000],
+  ['Rodapié MDF lacado 70 mm','bar',5.6,2400],
+  ['Tapajuntas MDF lacado 70 mm','bar',4.8,2200]]},
+ {cat:'Suelos',items:[
+  ['Tarima flotante AC4','area',19.5,2.2],
+  ['Suelo laminado AC5','area',14,2.4],
+  ['Parquet macizo de roble','area',55,1.8],
+  ['Suelo vinílico clic','area',22,2.2]]},
+ {cat:'Herrajes',items:[
+  ['Bisagra de cazoleta con amortiguador','unit',2.1,'ud'],
+  ['Bisagra de cazoleta sin amortiguador','unit',1.2,'ud'],
+  ['Guía de cajón telescópica','unit',11,'par'],
+  ['Guía oculta de cierre suave','unit',16,'par'],
+  ['Pata regulable','unit',1.5,'ud'],
+  ['Soporte de balda','unit',0.15,'ud'],
+  ['Tirador de barra','unit',3.5,'ud'],
+  ['Pomo','unit',1.8,'ud'],
+  ['Barra de armario ovalada','unit',9,'ud'],
+  ['Cierre magnético','unit',1.2,'ud'],
+  ['Cerradura de mueble','unit',8,'ud']]},
+ {cat:'Tornillería, cantos y pegamentos',items:[
+  ['Tornillos aglomerado (caja 200)','unit',7,'caja'],
+  ['Tacos y tornillos de pared (bolsa)','unit',4,'bolsa'],
+  ['Canto PVC 22 mm','unit',0.45,'ml'],
+  ['Canto PVC 45 mm','unit',0.9,'ml'],
+  ['Canto melamina termoadhesivo 22 mm','unit',0.2,'ml'],
+  ['Cola blanca 1 kg','unit',6.5,'ud'],
+  ['Cola de poliuretano','unit',9,'ud'],
+  ['Silicona','unit',4,'ud']]},
+ {cat:'Acabados',items:[
+  ['Barniz 750 ml','unit',14,'ud'],
+  ['Lasur 750 ml','unit',12,'ud'],
+  ['Aceite para madera 500 ml','unit',15,'ud'],
+  ['Tapaporos 750 ml','unit',11,'ud'],
+  ['Lija (hoja)','unit',0.6,'ud']]}
+];
+const PRESETS=CATALOG.flatMap(c=>c.items);
+const findPreset=name=>PRESETS.find(p=>p[0]===name);
+const GRAIN=/roble|chapado|contrachapado|alistonado|macizo|pino|abeto|madera/i;
+function presetToMat(p,id){
+  const m={id:id||uid(),name:p[0],kind:p[1],price:p[2]};
+  if(p[1]==='board'){m.L=p[3];m.W=p[4];m.t=p[5];m.grain=GRAIN.test(p[0])}
+  else if(p[1]==='bar')m.barLen=p[3];
+  else if(p[1]==='area')m.pack=p[3];
+  else m.unit=p[3];
+  return m;
+}
+const DEFAULT_IDS=[
+ ['agl16','Aglomerado crudo 16 mm'],['agl19','Aglomerado crudo 19 mm'],
+ ['mel16','Aglomerado melaminado blanco 16 mm'],['mel19','Aglomerado melaminado blanco 19 mm'],['melc19','Aglomerado melaminado color liso 19 mm'],
+ ['dm16','DM crudo 16 mm'],['dm19','DM crudo 19 mm'],['abedul18','Contrachapado de abedul 18 mm'],['chopo15','Contrachapado de chopo 15 mm'],
+ ['dm3','Trasera DM 3 mm'],['liston45','Listón de pino 45×45 mm'],['rastrel','Rastrel de pino 30×40 mm'],['rodapie','Rodapié MDF lacado 70 mm'],
+ ['tarima','Tarima flotante AC4'],['bisagra','Bisagra de cazoleta con amortiguador'],['guia','Guía de cajón telescópica'],['tirador','Tirador de barra'],
+ ['tornillos','Tornillos aglomerado (caja 200)'],['cola','Cola blanca 1 kg'],['canto','Canto PVC 22 mm']
+];
+const defaultMaterials=()=>DEFAULT_IDS.map(([id,n])=>presetToMat(findPreset(n),id));
+const defaultSettings=()=>({rate:28,margin:15,iva:21,waste:10,kerf:4});
+
+/* ---------- almacenamiento: varios presupuestos ---------- */
+function blankBudget(db){
+  db.counter=(db.counter||0)+1;
+  return{id:uid(),num:db.counter,created:Date.now(),updated:Date.now(),example:false,
+    project:{cliente:'',obra:'',fecha:today(),desc:'',pdfMode:'desglose'},lines:[],
+    labor:[{id:uid(),name:'Fabricación y montaje',mode:'h',qty:0,price:0}],extras:[]};
+}
+function loadDB(){
+  try{const j=localStorage.getItem(KEY);if(j){const o=JSON.parse(j);if(o&&o.budgets&&o.budgets.length&&o.materials&&o.settings)return o}}catch(e){}
+  const db={v:2,counter:0,unit:'cm',settings:defaultSettings(),materials:defaultMaterials(),company:{name:'',nif:'',phone:'',email:'',notes:'',logo:'',logoW:0,logoH:0},budgets:[],cur:''};
+  try{
+    const j=localStorage.getItem(OLDKEY);
+    if(j){const o=JSON.parse(j);
+      if(o&&o.lines&&o.materials){
+        db.materials=o.materials;db.settings=Object.assign(defaultSettings(),o.settings);db.unit=o.unit||'cm';
+        const b=blankBudget(db);b.project=Object.assign(b.project,o.project);b.lines=o.lines;
+        b.labor=(o.labor||[]).map(x=>({id:x.id||uid(),name:x.name,mode:'h',qty:x.hours||0,price:0}));b.extras=o.extras||[];b.example=!!o.example;
+        db.budgets.push(b);db.cur=b.id;return db}}
+  }catch(e){}
+  const b=blankBudget(db);
+  b.project.obra='Ejemplo: armario de dormitorio';b.example=true;
+  b.lines=buildArmario({materials:db.materials},{name:'Armario',H:2400,W:1800,D:600,shelves:3,doors:2,body:'mel16',door:'mel16',back:'dm3',hinge:'bisagra',pull:'tirador',edge:'canto'});
+  b.labor=[{id:uid(),name:'Fabricación y montaje',mode:'h',qty:16,price:0}];
+  b.extras=[{id:uid(),name:'Transporte',amount:40}];
+  db.budgets.push(b);db.cur=b.id;return db;
+}
+const S={}; /* copia de trabajo: ajustes globales + presupuesto abierto */
+let DB;
+function useBudget(b){
+  DB.cur=b.id;S.cur=b;S.project=b.project;S.lines=b.lines;S.labor=b.labor;S.extras=b.extras;S.example=b.example;
+  S.project.pdfMode=S.project.pdfMode||'desglose';S.project.desc=S.project.desc||'';
+}
+function persist(){
+  const b=S.cur;b.project=S.project;b.lines=S.lines;b.labor=S.labor;b.extras=S.extras;b.example=S.example;
+  DB.unit=S.unit;DB.settings=S.settings;DB.materials=S.materials;DB.company=S.company;DB.cur=b.id;
+  try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast('No se pudo guardar: falta espacio en el móvil')}
+}
+let saveT;
+function save(){S.cur.updated=Date.now();clearTimeout(saveT);saveT=setTimeout(persist,300)}
+function initState(db){
+  DB=db||loadDB();S.unit=DB.unit||'cm';S.settings=DB.settings;S.materials=DB.materials;S.company=DB.company;
+  const b=DB.budgets.find(x=>x.id===DB.cur)||DB.budgets[0];useBudget(b);
+}
+const mat=id=>S.materials.find(m=>m.id===id);
+const f=()=>UNITS[S.unit]||10;
+const toDisp=mm=>String(Math.round(mm/f()*1000)/1000).replace('.',',');
+const dims=(a,b)=>toDisp(a)+' × '+toDisp(b)+' '+S.unit;
+const refOf=b=>new Date(b.created).getFullYear()+'-'+String(b.num).padStart(3,'0');
+
+/* ---------- cálculo ---------- */
+function packBoards(items,m,kerf){
+  let BL=m.L,BW=m.W;const grain=!!m.grain;
+  if(!grain&&BW>BL){const t=BL;BL=BW;BW=t}
+  const over=[],list=[];
+  for(const it of items){
+    let a=it.a,b=it.b;
+    if(!grain&&b>a){const t=a;a=b;b=t}
+    if(a>BL||b>BW){over.push(it);continue}
+    list.push({a,b,label:it.label});
+  }
+  list.sort((p,q)=>q.b-p.b||q.a-p.a);
+  const CL=BL+kerf,CW=BW+kerf,boards=[];
+  for(const p of list){
+    const ea=p.a+kerf,eb=p.b+kerf;let done=false;
+    for(const bd of boards){
+      for(const sh of bd.shelves){
+        if(eb<=sh.h&&sh.x+ea<=CL){sh.items.push({x:sh.x,y:sh.y,a:p.a,b:p.b,label:p.label});sh.x+=ea;done=true;break}
+      }
+      if(done)break;
+      if(bd.y+eb<=CW){const sh={y:bd.y,h:eb,x:0,items:[]};bd.shelves.push(sh);bd.y+=eb;sh.items.push({x:0,y:sh.y,a:p.a,b:p.b,label:p.label});sh.x=ea;done=true;break}
+    }
+    if(!done){const sh={y:0,h:eb,x:ea,items:[{x:0,y:0,a:p.a,b:p.b,label:p.label}]};boards.push({shelves:[sh],y:eb})}
+  }
+  const used=list.reduce((s,p)=>s+p.a*p.b,0);
+  return{boards,over,BL,BW,usage:boards.length?used/(boards.length*BL*BW):0};
+}
+function packBars(items,m,kerf){
+  const BL=m.barLen,over=[],list=[];
+  for(const it of items){if(it.L>BL)over.push(it);else list.push(it)}
+  list.sort((p,q)=>q.L-p.L);
+  const bars=[];
+  for(const p of list){
+    const e=p.L+kerf;let bar=bars.find(b=>b.used+e<=BL+kerf);
+    if(!bar){bar={used:0,items:[]};bars.push(bar)}
+    bar.items.push({L:p.L,label:p.label});bar.used+=e;
+  }
+  const used=list.reduce((s,p)=>s+p.L,0);
+  return{bars,over,BL,usage:bars.length?used/(bars.length*BL):0};
+}
+const qOf=l=>Math.max(0,Math.round(+l.qty||0));
+function calcMat(m,lines){
+  const o={mat:m,kind:m.kind,bad:{},cost:0,buy:0,buyText:'',usage:null};
+  const kerf=S.settings.kerf;
+  if(m.kind==='board'){
+    const items=[];
+    for(const l of lines)if(l.L>0&&l.W>0)for(let i=0;i<qOf(l);i++)items.push({a:l.L,b:l.W,label:l.name||'Pieza',id:l.id});
+    const r=packBoards(items,m,kerf);
+    r.over.forEach(it=>{o.bad[it.id]='No cabe en un tablero de '+dims(m.L,m.W)});
+    o.pack=r;o.buy=r.boards.length;o.cost=o.buy*m.price;o.usage=r.usage;
+    o.buyText=o.buy+' '+pl(o.buy,'tablero','tableros');
+  }else if(m.kind==='bar'){
+    const items=[];
+    for(const l of lines)if(l.L>0)for(let i=0;i<qOf(l);i++)items.push({L:l.L,label:l.name||'Pieza',id:l.id});
+    const r=packBars(items,m,kerf);
+    r.over.forEach(it=>{o.bad[it.id]='Más larga que la barra ('+toDisp(m.barLen)+' '+S.unit+')'});
+    o.pack=r;o.buy=r.bars.length;o.cost=o.buy*m.price;o.usage=r.usage;
+    o.buyText=o.buy+' '+pl(o.buy,'barra','barras')+' de '+n1(m.barLen/1000)+' m';
+  }else if(m.kind==='area'){
+    let net=0;for(const l of lines)if(l.L>0&&l.W>0)net+=l.L*l.W*qOf(l)/1e6;
+    const gross=net*(1+S.settings.waste/100);
+    if(m.pack>0&&gross>0){const boxes=Math.ceil(gross/m.pack-1e-9);o.buy=boxes*m.pack;o.buyText=n2(o.buy)+' m² ('+boxes+' '+pl(boxes,'caja','cajas')+')'}
+    else{o.buy=Math.ceil(gross*100-1e-9)/100;o.buyText=n2(o.buy)+' m²'}
+    o.cost=o.buy*m.price;o.usage=o.buy>0?net/o.buy:null;
+  }else{
+    let q=0;for(const l of lines)q+=Math.max(0,+l.qty||0);
+    const dec=['ml','m','kg','l'].includes(String(m.unit).toLowerCase());
+    o.buy=dec?Math.ceil(q*10-1e-9)/10:Math.ceil(q-1e-9);
+    o.cost=o.buy*m.price;o.buyText=o.buy.toLocaleString('es-ES')+' '+m.unit;
+  }
+  o.cost=r2(o.cost);return o;
+}
+function compute(lines){
+  const by=new Map();
+  for(const l of lines){const m=mat(l.matId);if(!m)continue;if(!by.has(m.id))by.set(m.id,[]);by.get(m.id).push(l)}
+  const res=[];for(const m of S.materials){const g=by.get(m.id);if(g)res.push(calcMat(m,g))}
+  return res;
+}
+const laborAmt=x=>{const q=+x.qty||0,p=+x.price||0;return x.mode==='u'?q*p:q*(p>0?p:S.settings.rate)};
+function totals(R,labor,extras){
+  const st=S.settings,mats=R.reduce((s,x)=>s+x.cost,0);
+  const lab=labor.reduce((s,x)=>s+laborAmt(x),0);
+  const ext=extras.reduce((s,x)=>s+(+x.amount||0),0);
+  const cost=mats+lab+ext,k=1+st.margin/100;
+  const cm=r2(mats*k),cl=r2(lab*k),ce=r2(ext*k);
+  const base=r2(cm+cl+ce),iva=r2(base*st.iva/100);
+  return{mats,labor:lab,extras:ext,cost,cm,cl,ce,base,iva,total:r2(base+iva),profit:r2(base-cost)};
+}
+function lineInfo(l){
+  const m=mat(l.matId);if(!m)return'—';const q=m.kind==='unit'?(+l.qty||0):qOf(l);
+  if(m.kind==='board'||m.kind==='area')return l.L>0&&l.W>0?n2(l.L*l.W*q/1e6)+' m²':'—';
+  if(m.kind==='bar')return l.L>0?n2(l.L*q/1000)+' m':'—';
+  return q?q.toLocaleString('es-ES')+' '+m.unit:'—';
+}
+
+/* ---------- asistentes ---------- */
+function newLine(name,matId,L,W,qty){return{id:uid(),name,matId,L:Math.round(L||0),W:Math.round(W||0),qty}}
+function gm(st,id){return st.materials.find(m=>m.id===id)}
+function backLines(add,back,bh,bw){
+  const lg=Math.max(bh,bw),sh=Math.min(bh,bw),BLm=Math.max(back.L,back.W),BWm=Math.min(back.L,back.W);
+  const parts=lg<=BLm?Math.max(1,Math.ceil(sh/BWm-1e-9)):1;
+  if(parts>1)add('Trasera (en '+parts+' partes)',back,lg,sh/parts,parts);else add('Trasera',back,bh,bw,1);
+}
+function buildArmario(st,v){
+  const body=gm(st,v.body),door=gm(st,v.door),back=gm(st,v.back),hinge=gm(st,v.hinge),pull=gm(st,v.pull),edge=gm(st,v.edge);
+  if(!body)return[];
+  const t=body.t||16,n=v.name||'Mueble',H=v.H,W=v.W,D=v.D,out=[];
+  const add=(s,m,L,Wd,q)=>out.push(newLine(n+' · '+s,m.id,L,Wd,q));
+  add('Laterales',body,H,D,2);
+  add('Techo y suelo',body,W-2*t,D,2);
+  if(v.shelves>0)add('Baldas',body,W-2*t,D-20,v.shelves);
+  const dw=v.doors>0?W/v.doors-3:0,dh=H-4;
+  if(v.doors>0&&door)add('Puertas',door,dh,dw,v.doors);
+  if(back)backLines(add,back,H-2,W-2);
+  if(v.doors>0&&hinge){const per=H<=1000?2:H<=1600?3:H<=2200?4:5;add('Bisagras',hinge,0,0,per*v.doors)}
+  if(v.doors>0&&pull)add('Tiradores',pull,0,0,v.doors);
+  if(edge){
+    let ml=2*H+(2+v.shelves)*(W-2*t);
+    if(v.doors>0&&door)ml+=v.doors*2*(dh+dw);
+    add('Canto',edge,0,0,Math.ceil(ml/100)/10);
+  }
+  return out;
+}
+function buildCajonera(st,v){
+  const body=gm(st,v.body),front=gm(st,v.front),back=gm(st,v.back),slide=gm(st,v.slide),pull=gm(st,v.pull),edge=gm(st,v.edge);
+  if(!body||!(v.drawers>0))return[];
+  const t=body.t||16,n=v.name||'Cajonera',H=v.H,W=v.W,D=v.D,N=v.drawers,out=[];
+  const add=(s,m,L,Wd,q)=>out.push(newLine(n+' · '+s,m.id,L,Wd,q));
+  const fm=front||body,fh=(H-2*t)/N-3,fw=W-2*t-3,iw=W-2*t-26,dd=D-50,bh=120;
+  add('Laterales',body,H,D,2);
+  add('Tapa y base',body,W-2*t,D,2);
+  if(back)backLines(add,back,H-2,W-2);
+  add('Frentes de cajón',fm,fh,fw,N);
+  add('Costados de cajón',body,dd,bh,2*N);
+  add('Frente y trasera interior de cajón',body,iw-2*t,bh,2*N);
+  add('Fondo de cajón',back||body,iw,dd,N);
+  if(slide)add('Guías de cajón',slide,0,0,N);
+  if(pull)add('Tiradores',pull,0,0,N);
+  if(edge)add('Canto',edge,0,0,Math.ceil((2*H+2*(W-2*t)+N*2*(fh+fw))/100)/10);
+  return out;
+}
+function buildMesa(st,v){
+  const top=gm(st,v.top),legs=gm(st,v.legs),edge=gm(st,v.edge);
+  if(!top)return[];
+  const n=v.name||'Mesa',out=[];
+  const add=(s,m,L,Wd,q)=>out.push(newLine(n+' · '+s,m.id,L,Wd,q));
+  add('Tapa',top,v.L,v.W,1);
+  if(legs){
+    add('Patas',legs,v.H-(top.t||19),0,4);
+    add('Largueros largos',legs,v.L-2*v.leg,0,2);
+    add('Largueros cortos',legs,v.W-2*v.leg,0,2);
+  }
+  if(edge)add('Canto de la tapa',edge,0,0,Math.ceil(2*(v.L+v.W)/100)/10);
+  return out;
+}
+function buildSuelo(st,v){
+  const floor=gm(st,v.floor),sk=gm(st,v.skirt),out=[];
+  if(floor)out.push(newLine('Suelo',floor.id,v.L,v.W,1));
+  if(sk){
+    out.push(newLine('Rodapié paredes largas',sk.id,v.L,0,2));
+    if(v.door>0&&v.door<v.W){out.push(newLine('Rodapié pared corta',sk.id,v.W,0,1));out.push(newLine('Rodapié pared con puerta',sk.id,v.W-v.door,0,1))}
+    else out.push(newLine('Rodapié paredes cortas',sk.id,v.W,0,2));
+  }
+  return out;
+}
+function matSelect(kind,sel,id,none){
+  const opts=S.materials.filter(m=>m.kind===kind).map(m=>`<option value="${m.id}"${m.id===sel?' selected':''}>${esc(m.name)}</option>`).join('');
+  return`<select id="${id}">${none?'<option value="">Sin ello</option>':''}${opts}</select>`;
+}
+function pick(kind,pref){const m=mat(pref);return m&&m.kind===kind?pref:(S.materials.find(x=>x.kind===kind)||{}).id||''}
+function openWizard(which){
+  const box=$('#wizardBox');box.hidden=false;box.dataset.wiz=which;
+  const num=(id,label,v)=>`<label class="f"><span>${label}</span><input id="${id}" inputmode="decimal" value="${v}"></label>`;
+  const U=S.unit,txt=(id,label,v)=>`<label class="f"><span>${label}</span><input id="${id}" value="${esc(v)}"></label>`;
+  const actions=`<div class="row"><button class="btn primary" data-act="wiz-add">Añadir al presupuesto</button><button class="btn" data-act="wiz-close">Cancelar</button></div>`;
+  let h='';
+  if(which==='armario'){
+    h=`<h3 style="font-size:19px;margin-bottom:10px">Armario o estantería</h3><div class="grid">
+      ${txt('w-name','Nombre','Armario')}${num('w-H','Alto ('+U+')',toDisp(2400))}${num('w-W','Ancho ('+U+')',toDisp(1800))}${num('w-D','Fondo ('+U+')',toDisp(600))}
+      ${num('w-shelves','Baldas intermedias',3)}${num('w-doors','Puertas (0 si no lleva)',2)}
+      <label class="f"><span>Material del cuerpo</span>${matSelect('board',pick('board','mel16'),'w-body')}</label>
+      <label class="f"><span>Material de las puertas</span>${matSelect('board',pick('board','mel16'),'w-door')}</label>
+      <label class="f"><span>Trasera</span>${matSelect('board',pick('board','dm3'),'w-back',true)}</label>
+      <label class="f"><span>Bisagras</span>${matSelect('unit',pick('unit','bisagra'),'w-hinge',true)}</label>
+      <label class="f"><span>Tiradores</span>${matSelect('unit',pick('unit','tirador'),'w-pull',true)}</label>
+      <label class="f"><span>Canto de los frentes</span>${matSelect('unit',pick('unit','canto'),'w-edge',true)}</label></div>
+      <p class="small">Descuenta el grosor del tablero en baldas, techo y suelo. Si la trasera no cabe entera en un tablero, la parte en dos o más piezas.</p>${actions}`;
+  }else if(which==='cajonera'){
+    h=`<h3 style="font-size:19px;margin-bottom:10px">Cajonera o mueble bajo</h3><div class="grid">
+      ${txt('w-name','Nombre','Cajonera')}${num('w-H','Alto ('+U+')',toDisp(800))}${num('w-W','Ancho ('+U+')',toDisp(1000))}${num('w-D','Fondo ('+U+')',toDisp(450))}
+      ${num('w-drawers','Cajones',3)}
+      <label class="f"><span>Material del cuerpo y cajones</span>${matSelect('board',pick('board','mel16'),'w-body')}</label>
+      <label class="f"><span>Material de los frentes</span>${matSelect('board',pick('board','mel16'),'w-front')}</label>
+      <label class="f"><span>Trasera y fondo de cajón</span>${matSelect('board',pick('board','dm3'),'w-back',true)}</label>
+      <label class="f"><span>Guías de cajón</span>${matSelect('unit',pick('unit','guia'),'w-slide',true)}</label>
+      <label class="f"><span>Tiradores</span>${matSelect('unit',pick('unit','tirador'),'w-pull',true)}</label>
+      <label class="f"><span>Canto de los frentes</span>${matSelect('unit',pick('unit','canto'),'w-edge',true)}</label></div>
+      <p class="small">Cada cajón lleva frente, dos costados, frente y trasera interior, y fondo. Las guías restan 13 mm por lado y 50 mm de fondo.</p>${actions}`;
+  }else if(which==='mesa'){
+    h=`<h3 style="font-size:19px;margin-bottom:10px">Mesa</h3><div class="grid">
+      ${txt('w-name','Nombre','Mesa')}${num('w-L','Largo de la tapa ('+U+')',toDisp(1600))}${num('w-W','Ancho de la tapa ('+U+')',toDisp(800))}${num('w-H','Alto total ('+U+')',toDisp(750))}
+      ${num('w-leg','Sección de la pata ('+U+')',toDisp(60))}
+      <label class="f"><span>Material de la tapa</span>${matSelect('board',pick('board','mel19'),'w-top')}</label>
+      <label class="f"><span>Patas y largueros (listón)</span>${matSelect('bar',pick('bar','liston45'),'w-legs',true)}</label>
+      <label class="f"><span>Canto de la tapa</span>${matSelect('unit',pick('unit','canto'),'w-edge',true)}</label></div>
+      <p class="small">Cuatro patas y cuatro largueros entre ellas. Cambia el material de la tapa por el que quieras (aglomerado, contrachapado, alistonado…).</p>${actions}`;
+  }else{
+    h=`<h3 style="font-size:19px;margin-bottom:10px">Suelo y rodapié</h3><div class="grid">
+      ${num('w-L','Largo de la habitación ('+U+')',toDisp(4500))}${num('w-W','Ancho de la habitación ('+U+')',toDisp(3200))}${num('w-door','Ancho total de puertas ('+U+')',toDisp(800))}
+      <label class="f"><span>Suelo</span>${matSelect('area',pick('area','tarima'),'w-floor',true)}</label>
+      <label class="f"><span>Rodapié</span>${matSelect('bar',pick('bar','rodapie'),'w-skirt',true)}</label></div>
+      <p class="small">La merma del suelo se aplica sola (ajustable en Precios). La puerta se descuenta del rodapié de una pared corta.</p>${actions}`;
+  }
+  box.innerHTML=h;box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function wizardAdd(){
+  const box=$('#wizardBox'),v=id=>$('#'+id).value,mm=id=>parseNum(v(id))*f(),cnt=id=>Math.max(0,Math.round(parseNum(v(id))));let added=[];
+  const w=box.dataset.wiz;
+  if(w==='armario')added=buildArmario(S,{name:v('w-name').trim()||'Mueble',H:mm('w-H'),W:mm('w-W'),D:mm('w-D'),shelves:cnt('w-shelves'),doors:cnt('w-doors'),body:v('w-body'),door:v('w-door'),back:v('w-back'),hinge:v('w-hinge'),pull:v('w-pull'),edge:v('w-edge')});
+  else if(w==='cajonera')added=buildCajonera(S,{name:v('w-name').trim()||'Cajonera',H:mm('w-H'),W:mm('w-W'),D:mm('w-D'),drawers:cnt('w-drawers'),body:v('w-body'),front:v('w-front'),back:v('w-back'),slide:v('w-slide'),pull:v('w-pull'),edge:v('w-edge')});
+  else if(w==='mesa')added=buildMesa(S,{name:v('w-name').trim()||'Mesa',L:mm('w-L'),W:mm('w-W'),H:mm('w-H'),leg:mm('w-leg'),top:v('w-top'),legs:v('w-legs'),edge:v('w-edge')});
+  else added=buildSuelo(S,{L:mm('w-L'),W:mm('w-W'),door:mm('w-door'),floor:v('w-floor'),skirt:v('w-skirt')});
+  S.lines.push(...added);box.hidden=true;box.innerHTML='';
+  S.example=false;renderLines();touch();toast(added.length?'Añadidas '+added.length+' líneas':'No se añadió nada: revisa las medidas');
+}
+
+/* ---------- render: guardados ---------- */
+function renderSaved(){
+  persist();
+  const list=[...DB.budgets].sort((a,b)=>b.updated-a.updated);
+  $('#savedList').innerHTML=list.map(b=>{
+    const T=totals(compute(b.lines),b.labor,b.extras),cur=b.id===S.cur.id;
+    const fecha=b.project.fecha?b.project.fecha.split('-').reverse().join('/'):'';
+    const sub=[b.project.cliente,fecha,'nº '+refOf(b)].filter(Boolean).join(' · ');
+    return`<div class="brow" data-id="${b.id}">
+      <div class="b-main"><b>${esc(b.project.obra||'Sin título')}${cur?'<span class="cur">Abierto</span>':''}</b><span>${esc(sub)}</span></div>
+      <div class="b-tot">${eur(T.total)}</div>
+      <div class="b-act"><button class="btn sm${cur?'':' primary'}" data-act="open">${cur?'Seguir':'Abrir'}</button><button class="btn sm" data-act="dup">Duplicar</button><button class="btn sm danger" data-act="del-budget">Borrar</button></div></div>`;
+  }).join('');
+}
+function openBudget(id){
+  persist();const b=DB.budgets.find(x=>x.id===id);if(!b)return;
+  useBudget(b);syncProject();renderLines();renderSub();touch();show('piezas');
+}
+function newBudget(){
+  persist();const b=blankBudget(DB);DB.budgets.push(b);useBudget(b);
+  syncProject();renderLines();renderSub();persist();refresh();show('piezas');toast('Presupuesto nuevo en blanco');
+}
+function dupBudget(id){
+  persist();const o=DB.budgets.find(x=>x.id===id);if(!o)return;
+  const b=JSON.parse(JSON.stringify(o));DB.counter++;b.id=uid();b.num=DB.counter;b.created=b.updated=Date.now();b.example=false;
+  b.project.obra=(b.project.obra||'Sin título')+' (copia)';DB.budgets.push(b);persist();renderSaved();toast('Duplicado');
+}
+function delBudget(id){
+  DB.budgets=DB.budgets.filter(b=>b.id!==id);
+  if(!DB.budgets.length){const b=blankBudget(DB);DB.budgets.push(b);useBudget(b);syncProject();renderLines();renderSub()}
+  else if(S.cur.id===id){useBudget(DB.budgets.slice().sort((a,b)=>b.updated-a.updated)[0]);syncProject();renderLines();renderSub()}
+  persist();refresh();renderSaved();toast('Presupuesto borrado');
+}
+
+/* ---------- render: piezas ---------- */
+function matOptions(sel){
+  return Object.keys(KINDS).map(k=>{
+    const o=S.materials.filter(m=>m.kind===k).map(m=>`<option value="${m.id}"${m.id===sel?' selected':''}>${esc(m.name)}</option>`).join('');
+    return o?`<optgroup label="${KINDS[k]}">${o}</optgroup>`:'';
+  }).join('');
+}
+function lineRow(l){
+  const m=mat(l.matId),kind=m?m.kind:'unit',u=S.unit;
+  const dimF=(k,cap)=>`<label class="f f-dim"><span>${cap} (${u})</span><input data-k="${k}" inputmode="decimal" value="${l[k]?toDisp(l[k]):''}" placeholder="0"></label>`;
+  let d='';
+  if(kind==='board'||kind==='area')d=dimF('L','Largo')+dimF('W','Ancho');
+  else if(kind==='bar')d=dimF('L','Largo');
+  const qcap=kind==='unit'&&m?esc(m.unit):'Cantidad';
+  return`<div class="line" data-id="${l.id}">
+    <label class="f f-name"><span>Descripción</span><input id="n-${l.id}" data-k="name" value="${esc(l.name)}" placeholder="Ej: lateral" autocomplete="off"></label>
+    <label class="f f-mat"><span>Material</span><select data-k="matId">${matOptions(l.matId)}</select></label>
+    ${d}
+    <label class="f f-qty"><span>${qcap}</span><input data-k="qty" inputmode="decimal" value="${l.qty}"></label>
+    <div class="f f-info"><span>Total</span><b data-info>—</b></div>
+    <button class="icon-btn" data-act="del-line" aria-label="Eliminar pieza" title="Eliminar">×</button>
+  </div>`;
+}
+function renderLines(){
+  $('#lines').innerHTML=S.lines.length?S.lines.map(lineRow).join(''):'<p class="sub">Aún no hay piezas. Usa un asistente o añade la primera pieza.</p>';
+}
+function renderSub(){
+  $('#laborList').innerHTML=S.labor.map(x=>{
+    const h=x.mode!=='u';
+    return`<div class="mini" data-id="${x.id}" data-list="labor">
+    <label class="f f-name"><span>Concepto</span><input data-k="name" value="${esc(x.name)}" placeholder="Ej: montaje"></label>
+    <label class="f f-mode"><span>Cobro</span><select data-k="mode"><option value="h"${h?' selected':''}>Por horas</option><option value="u"${h?'':' selected'}>Por pieza o mueble</option></select></label>
+    <label class="f f-dim"><span>${h?'Horas':'Cantidad'}</span><input data-k="qty" inputmode="decimal" value="${x.qty||''}" placeholder="0"></label>
+    <label class="f f-dim"><span>${h?'€ por hora':'€ por pieza'}</span><input data-k="price" inputmode="decimal" value="${x.price?String(x.price).replace('.',','):''}" placeholder="${h?String(S.settings.rate).replace('.',','):'0'}"></label>
+    <div class="f f-info"><span>Importe</span><b data-lamt>—</b></div>
+    <button class="icon-btn" data-act="del-sub" aria-label="Eliminar" title="Eliminar">×</button></div>`}).join('');
+  $('#extraList').innerHTML=S.extras.map(x=>`<div class="mini" data-id="${x.id}" data-list="extras">
+    <label class="f f-name"><span>Concepto</span><input data-k="name" value="${esc(x.name)}" placeholder="Ej: transporte"></label>
+    <label class="f f-dim"><span>Importe (€)</span><input data-k="amount" inputmode="decimal" value="${x.amount||''}" placeholder="0"></label>
+    <button class="icon-btn" data-act="del-sub" aria-label="Eliminar" title="Eliminar">×</button></div>`).join('');
+}
+function syncProject(){
+  const p=S.project;
+  $('#p-cliente').value=p.cliente||'';$('#p-obra').value=p.obra||'';$('#p-fecha').value=p.fecha||'';$('#p-unit').value=S.unit;
+  $('#p-desc').value=p.desc||'';$('#p-pdfMode').value=p.pdfMode||'desglose';
+  $('#refTag').textContent='· nº '+refOf(S.cur);
+  $('#exampleNote').hidden=!S.example;
+}
+function syncSettings(){
+  const st=S.settings,c=S.company,sv=(id,v)=>{$(id).value=String(v).replace('.',',')};
+  sv('#s-rate',st.rate);sv('#s-margin',st.margin);sv('#s-iva',st.iva);sv('#s-waste',st.waste);sv('#s-kerf',st.kerf);
+  $('#c-name').value=c.name||'';$('#c-nif').value=c.nif||'';$('#c-phone').value=c.phone||'';$('#c-email').value=c.email||'';$('#c-notes').value=c.notes||'';
+  syncLogo();
+}
+function syncLogo(){
+  const img=$('#logoPrev'),c=S.company;
+  if(c.logo){img.src=c.logo;img.hidden=false;$('#btnLogoDel').hidden=false}else{img.hidden=true;img.removeAttribute('src');$('#btnLogoDel').hidden=true}
+}
+
+/* ---------- render: precios ---------- */
+const PRICE_CAP={board:'€ por tablero',bar:'€ por barra',area:'€ por m²'};
+let matFilter='';
+function matRow(m){
+  const num=(k,cap,v,cls)=>`<label class="f ${cls||'f-sm'}"><span>${cap}</span><input data-m="${k}" inputmode="decimal" value="${String(v==null?'':v).replace('.',',')}"></label>`;
+  let x='';
+  if(m.kind==='board')x=num('L','Largo (mm)',m.L)+num('W','Ancho (mm)',m.W)+num('t','Grosor (mm)',m.t)+`<label class="chk"><input type="checkbox" data-m="grain"${m.grain?' checked':''}> Respetar veta (no girar)</label>`;
+  else if(m.kind==='bar')x=num('barLen','Largo barra (m)',m.barLen/1000);
+  else if(m.kind==='area')x=num('pack','m² por caja (0 = suelto)',m.pack);
+  else x=`<label class="f f-sm"><span>Unidad</span><input data-m="unit" value="${esc(m.unit)}" placeholder="ud, ml, par"></label>`;
+  const pc=m.kind==='unit'?'€ por '+esc(m.unit||'ud'):PRICE_CAP[m.kind];
+  return`<div class="mrow" data-id="${m.id}">
+    <label class="f f-name"><span>Nombre</span><input data-m="name" value="${esc(m.name)}"></label>
+    <label class="f f-kind"><span>Se compra como</span><select data-m="kind">${Object.keys(KINDS).map(k=>`<option value="${k}"${k===m.kind?' selected':''}>${KINDS[k]}</option>`).join('')}</select></label>
+    ${x}
+    ${num('price',pc,m.price,'f-price')}
+    <button class="icon-btn" data-act="del-mat" aria-label="Eliminar material" title="Eliminar">×</button></div>`;
+}
+function renderMats(){
+  const q=matFilter.trim().toLowerCase();
+  const rows=S.materials.filter(m=>!q||m.name.toLowerCase().includes(q));
+  $('#matList').innerHTML=rows.length?rows.map(matRow).join(''):'<p class="sub">No hay ningún material con ese nombre. Búscalo en el catálogo de abajo.</p>';
+}
+function matDesc(p){
+  if(p[1]==='board')return toCm(p[3])+' × '+toCm(p[4])+' cm · '+p[5]+' mm';
+  if(p[1]==='bar')return 'barra de '+n1(p[3]/1000)+' m';
+  if(p[1]==='area')return 'caja de '+n1(p[3])+' m²';
+  return 'por '+p[3];
+}
+const toCm=mm=>String(Math.round(mm/10*10)/10).replace('.',',');
+function renderCatalog(){
+  const have=new Set(S.materials.map(m=>m.name));
+  $('#catalog').innerHTML=CATALOG.map((c,ci)=>`<details class="cat"><summary>${c.cat}<small>${c.items.length} tipos</small></summary>`+
+    c.items.map((p,pi)=>`<div class="crow"><div class="c-main"><b>${esc(p[0])}</b><span>${matDesc(p)} · ejemplo ${eur(p[2])}</span></div>`+
+      (have.has(p[0])?'<span class="small">Ya en tu lista</span>':`<button class="btn sm" data-act="cat-add" data-i="${ci}-${pi}">Añadir</button>`)+`</div>`).join('')+`</details>`).join('');
+}
+
+/* ---------- render: presupuesto ---------- */
+function boardSvg(bd,BL,BW,i){
+  let s=`<svg class="cut" viewBox="0 0 ${BL} ${BW}" role="img" aria-label="Tablero ${i}"><rect class="bd" x="0" y="0" width="${BL}" height="${BW}"/>`;
+  for(const sh of bd.shelves)for(const it of sh.items){
+    const t=toDisp(it.a)+'×'+toDisp(it.b);let fs=Math.min(it.b*0.4,it.a/(t.length*0.6),BL/26);
+    s+=`<rect class="pc" x="${it.x}" y="${it.y}" width="${it.a}" height="${it.b}"><title>${esc(it.label)}: ${t} ${S.unit}</title></rect>`;
+    if(fs>=BL/110)s+=`<text class="pt" x="${it.x+it.a/2}" y="${it.y+it.b/2}" font-size="${fs.toFixed(1)}">${t}</text>`;
+  }
+  return s+'</svg>';
+}
+function barSvg(bar,BL){
+  let s=`<svg class="cut" viewBox="0 0 ${BL} 90" role="img" aria-label="Barra"><rect class="bd" x="0" y="10" width="${BL}" height="70"/>`,x=0;
+  for(const it of bar.items){
+    const t=toDisp(it.L);const fs=Math.min(34,it.L/(t.length*0.6));
+    s+=`<rect class="pc" x="${x}" y="10" width="${it.L}" height="70"><title>${esc(it.label)}: ${t} ${S.unit}</title></rect>`;
+    if(fs>=14)s+=`<text class="pt" x="${x+it.L/2}" y="45" font-size="${fs.toFixed(1)}">${t}</text>`;
+    x+=it.L+S.settings.kerf;
+  }
+  return s+'</svg>';
+}
+function grouped(items,fmt){
+  const m=new Map();for(const it of items){const k=fmt(it);m.set(k,(m.get(k)||0)+1)}
+  return Array.from(m,([k,n])=>n+'× '+k).join(', ');
+}
+const fechaLarga=()=>S.project.fecha?new Date(S.project.fecha+'T12:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'}):'';
+function laborDetail(){
+  const h=S.labor.filter(x=>x.mode!=='u').reduce((s,x)=>s+(+x.qty||0),0),u=S.labor.filter(x=>x.mode==='u').reduce((s,x)=>s+(+x.qty||0),0);
+  return[h?n1(h)+' h':'',u?n1(u)+' '+pl(u,'pieza','piezas'):''].filter(Boolean).join(' + ');
+}
+let LAST={R:[],T:null};
+function renderBudget(){
+  const R=LAST.R,T=LAST.T,st=S.settings;
+  const row=(a,b)=>b>0?`<tr><td>${a}</td><td>${eur(b)}</td></tr>`:'';
+  const total=S.project.pdfMode==='total';
+  $('#quote').innerHTML=`<div class="quote">
+    <div class="q-head"><div><h2>Presupuesto</h2><p>${esc(S.project.obra||'Sin descripción')}</p></div>
+      <div class="q-meta">nº ${refOf(S.cur)}<br>${S.project.cliente?'Cliente: '+esc(S.project.cliente)+'<br>':''}${fechaLarga()}</div></div>
+    <table class="sum">${total?row('Importe del trabajo',T.base):row('Materiales',T.cm)+row('Mano de obra',T.cl)+row('Otros gastos',T.ce)}
+      <tr class="sub"><td>Base imponible</td><td>${eur(T.base)}</td></tr>
+      <tr class="sub"><td>IVA (${n1(st.iva)} %)</td><td>${eur(T.iva)}</td></tr>
+      <tr class="tt"><td>Total</td><td>${eur(T.total)}</td></tr></table>
+    <p class="small" style="margin:0">Así lo ve el cliente. Tu beneficio no aparece.</p></div>`;
+  const ld=laborDetail();
+  $('#shopCosts').innerHTML=`<h2>Tus cuentas</h2><p class="sub">Esta parte es solo para ti.</p>
+    <table class="sum"><tr><td>Materiales (coste)</td><td>${eur(T.mats)}</td></tr>
+      <tr><td>Mano de obra${ld?' ('+ld+')':''}</td><td>${eur(T.labor)}</td></tr>
+      <tr><td>Otros gastos</td><td>${eur(T.extras)}</td></tr>
+      <tr class="sub"><td>Coste total</td><td>${eur(T.cost)}</td></tr>
+      <tr class="gain"><td>Beneficio (${n1(st.margin)} % sobre costes)</td><td>${eur(T.profit)}</td></tr>
+      <tr class="sub"><td>Base imponible</td><td>${eur(T.base)}</td></tr></table>`;
+  if(!R.length){$('#shopTable').innerHTML='<p class="sub">Añade piezas en la pestaña Piezas y aquí aparecerá la lista.</p>';$('#cuts').innerHTML='<p class="sub">Todavía no hay cortes que mostrar.</p>';return}
+  $('#shopTable').innerHTML=`<table class="tbl"><thead><tr><th>Material</th><th>Comprar</th><th>Aprovechamiento</th><th class="r">Precio</th><th class="r">Importe</th></tr></thead><tbody>`+
+    R.map(x=>{
+      const m=x.mat,pr=m.kind==='unit'?eur(m.price)+'/'+esc(m.unit):m.kind==='area'?eur(m.price)+'/m²':eur(m.price);
+      const u=x.usage==null?'—':`<span class="pill${x.usage<0.6?' low':''}">${Math.round(x.usage*100)} %</span>`;
+      return`<tr><td>${esc(m.name)}</td><td>${x.buyText}</td><td>${u}</td><td class="r">${pr}</td><td class="r"><b>${eur(x.cost)}</b></td></tr>`}).join('')+
+    `<tr><td colspan="4"><b>Total materiales</b></td><td class="r"><b>${eur(T.mats)}</b></td></tr></tbody></table>`;
+  $('#cuts').innerHTML=R.map(x=>{
+    const m=x.mat;
+    if(m.kind==='board'){
+      const p=x.pack;if(!p.boards.length)return'';
+      return`<details class="cut" open><summary>${esc(m.name)}<small>${x.buyText} de ${dims(m.L,m.W)} · aprovechamiento ${Math.round(x.usage*100)} %</small></summary>
+        <div class="boards">${p.boards.map((bd,i)=>`<div><p class="bcap">Tablero ${i+1}</p>${boardSvg(bd,p.BL,p.BW,i+1)}</div>`).join('')}</div></details>`;
+    }
+    if(m.kind==='bar'){
+      const p=x.pack;if(!p.bars.length)return'';
+      return`<details class="cut"><summary>${esc(m.name)}<small>${x.buyText} · aprovechamiento ${Math.round(x.usage*100)} %</small></summary>
+        <div class="boards">${p.bars.map((b,i)=>`<div><p class="bcap">Barra ${i+1}</p>${barSvg(b,p.BL)}</div>`).join('')}</div></details>`;
+    }
+    return'';
+  }).join('')||'<p class="sub">Los materiales que se compran por m² o por unidad no necesitan plano de corte.</p>';
+}
+
+/* ---------- textos para copiar ---------- */
+function clientText(){
+  const T=LAST.T,st=S.settings,L=[],c=S.company;
+  if(c.name)L.push(c.name);
+  L.push('PRESUPUESTO nº '+refOf(S.cur)+(S.project.obra?' · '+S.project.obra:''));
+  if(S.project.cliente)L.push('Cliente: '+S.project.cliente);
+  if(S.project.fecha)L.push('Fecha: '+S.project.fecha.split('-').reverse().join('/'));
+  if(S.project.desc)L.push('',S.project.desc);
+  L.push('');
+  if(S.project.pdfMode==='total'){if(T.base>0)L.push('Importe del trabajo: '+eur(T.base))}
+  else{if(T.cm>0)L.push('Materiales: '+eur(T.cm));if(T.cl>0)L.push('Mano de obra: '+eur(T.cl));if(T.ce>0)L.push('Otros gastos: '+eur(T.ce))}
+  L.push('Base imponible: '+eur(T.base),'IVA ('+n1(st.iva)+' %): '+eur(T.iva),'TOTAL: '+eur(T.total));
+  if(c.notes)L.push('',c.notes);
+  return L.join('\n');
+}
+function shopText(){
+  const L=['LISTA DE COMPRA'+(S.project.obra?' · '+S.project.obra:''),''];
+  LAST.R.forEach(x=>L.push('• '+x.mat.name+': '+x.buyText+' — '+eur(x.cost)));
+  L.push('','Total materiales: '+eur(LAST.T.mats));return L.join('\n');
+}
+function cutText(){
+  const L=['LISTA DE CORTE'+(S.project.obra?' · '+S.project.obra:''),'(medidas en '+S.unit+')'];
+  LAST.R.forEach(x=>{
+    if(x.kind==='board'){L.push('','== '+x.mat.name+' ('+dims(x.mat.L,x.mat.W)+')');
+      x.pack.boards.forEach((bd,i)=>L.push('Tablero '+(i+1)+': '+grouped(bd.shelves.flatMap(s=>s.items),it=>toDisp(it.a)+'×'+toDisp(it.b)+' '+it.label)))}
+    else if(x.kind==='bar'){L.push('','== '+x.mat.name+' (barras de '+n1(x.mat.barLen/1000)+' m)');
+      x.pack.bars.forEach((b,i)=>L.push('Barra '+(i+1)+': '+grouped(b.items,it=>toDisp(it.L)+' '+it.label)))}
+  });
+  return L.join('\n');
+}
+function copyText(t){
+  const box=$('#copyBox'),ta=$('#copyArea');
+  const fallback=()=>{box.hidden=false;ta.value=t;ta.focus();ta.select()};
+  try{navigator.clipboard.writeText(t).then(()=>{box.hidden=true;toast('Copiado')},fallback)}catch(e){fallback()}
+}
+
+/* ---------- PDF para el cliente ---------- */
+function buildPdf(){
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:'mm',format:'a4'});
+  const T=LAST.T,c=S.company,P=S.project,st=S.settings,W=210,M=18,acc=[46,106,76];
+  const money=n=>n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+  let y=M;
+  const need=h=>{if(y+h>282){doc.addPage();y=M}};
+  /* cabecera: logo a la izquierda, datos a la derecha */
+  let hh=0;
+  if(c.logo&&c.logoW>0){
+    const sc=Math.min(48/c.logoW,24/c.logoH),w=c.logoW*sc,h=c.logoH*sc;
+    try{doc.addImage(c.logo,'PNG',M,y,w,h)}catch(e){}hh=h;
+  }
+  doc.setTextColor(30,30,30);doc.setFont('helvetica','bold');doc.setFontSize(14);
+  const info=[c.nif,c.phone,c.email].filter(Boolean);
+  let ry=y+5;
+  if(c.name){doc.text(c.name,W-M,ry,{align:'right'});ry+=6}
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(90,90,90);
+  info.forEach(t=>{doc.text(t,W-M,ry,{align:'right'});ry+=4.6});
+  y=Math.max(y+hh,ry)+4;
+  doc.setDrawColor(...acc);doc.setLineWidth(0.9);doc.line(M,y,W-M,y);y+=11;
+  /* título */
+  doc.setFont('helvetica','bold');doc.setFontSize(22);doc.setTextColor(30,30,30);doc.text('PRESUPUESTO',M,y);
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(90,90,90);
+  doc.text('Nº '+refOf(S.cur),W-M,y-6,{align:'right'});
+  if(P.fecha)doc.text(fechaLarga(),W-M,y,{align:'right'});
+  y+=10;
+  doc.setTextColor(30,30,30);doc.setFontSize(11);
+  if(P.cliente){doc.setFont('helvetica','bold');doc.text('Cliente:',M,y);doc.setFont('helvetica','normal');doc.text(P.cliente,M+18,y);y+=6}
+  if(P.obra){doc.setFont('helvetica','bold');doc.text('Trabajo:',M,y);doc.setFont('helvetica','normal');
+    const ol=doc.splitTextToSize(P.obra,W-2*M-18);doc.text(ol,M+18,y);y+=6*ol.length}
+  if(P.desc){y+=2;doc.setFontSize(10.5);doc.setTextColor(60,60,60);const dl=doc.splitTextToSize(P.desc,W-2*M);
+    for(const ln of dl){need(6);doc.text(ln,M,y);y+=5.2}}
+  y+=8;
+  /* tabla de conceptos */
+  need(50);
+  doc.setFillColor(...acc);doc.rect(M,y-5,W-2*M,8,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(255,255,255);
+  doc.text('CONCEPTO',M+3,y);doc.text('IMPORTE',W-M-3,y,{align:'right'});y+=9;
+  doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');doc.setFontSize(11);
+  const rows=P.pdfMode==='total'?[['Importe del trabajo',T.base]]:[['Materiales',T.cm],['Mano de obra',T.cl],['Otros gastos',T.ce]];
+  rows.filter(r=>r[1]>0).forEach(r=>{
+    doc.text(r[0],M+3,y);doc.text(money(r[1]),W-M-3,y,{align:'right'});y+=3;
+    doc.setDrawColor(210,214,206);doc.setLineWidth(0.2);doc.line(M,y,W-M,y);y+=6;
+  });
+  y+=2;
+  /* totales */
+  need(40);
+  const tx=W-M-3;
+  doc.setFontSize(11);doc.setTextColor(90,90,90);
+  doc.text('Base imponible',W-M-70,y);doc.text(money(T.base),tx,y,{align:'right'});y+=6.5;
+  doc.text('IVA ('+n1(st.iva)+' %)',W-M-70,y);doc.text(money(T.iva),tx,y,{align:'right'});y+=5;
+  doc.setFillColor(233,185,59);doc.rect(W-M-80,y,80,12,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(27,34,30);
+  doc.text('TOTAL',W-M-76,y+8);doc.text(money(T.total),tx,y+8,{align:'right'});y+=24;
+  /* condiciones */
+  if(c.notes){
+    need(24);
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(30,30,30);doc.text('Condiciones',M,y);y+=5.5;
+    doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(80,80,80);
+    for(const ln of doc.splitTextToSize(c.notes,W-2*M)){need(5);doc.text(ln,M,y);y+=4.8}
+  }
+  return doc;
+}
+async function saveFile(name,blob){
+  let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
+  if(dl){await dl.save({filename:name,data:blob});return}
+  /* en el móvil, abre el menú de compartir (WhatsApp, correo, guardar en archivos) */
+  try{
+    const file=new File([blob],name,{type:blob.type||'application/octet-stream'});
+    if(/Android|iPhone|iPad/i.test(navigator.userAgent)&&navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:name});return;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return}
+  const u=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);
+}
+async function downloadPdf(){
+  const msg=$('#pdfMsg');msg.textContent='';
+  if(!window.jspdf){msg.textContent='No se pudo cargar el generador de PDF. Comprueba la conexión y vuelve a intentarlo.';return}
+  try{
+    const doc=buildPdf();
+    const name=('Presupuesto '+refOf(S.cur)+' '+(S.project.cliente||S.project.obra||'')).replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim()+'.pdf';
+    await saveFile(name,doc.output('blob'));
+    toast('PDF listo');
+  }catch(e){
+    if(e&&e.code==='declined')return;
+    msg.textContent='No se pudo guardar el PDF'+(e&&e.message?': '+e.message:'')+'. Prueba con "Copiar texto".';
+  }
+}
+
+/* ---------- refresco ---------- */
+let curTab='piezas',dirty=true;
+function refresh(){
+  const R=compute(S.lines),T=totals(R,S.labor,S.extras);LAST={R,T};
+  $('#hdrTotal').textContent=eur(T.total);
+  const bad={};R.forEach(x=>Object.assign(bad,x.bad));
+  $$('#lines .line').forEach(row=>{
+    const l=S.lines.find(x=>x.id===row.dataset.id);if(!l)return;
+    const inf=$('[data-info]',row),box=inf.parentNode;
+    if(bad[l.id]){inf.textContent=bad[l.id];box.classList.add('bad')}else{inf.textContent=lineInfo(l);box.classList.remove('bad')}
+  });
+  $$('#laborList .mini').forEach(row=>{
+    const x=S.labor.find(y=>y.id===row.dataset.id);if(x)$('[data-lamt]',row).textContent=laborAmt(x)>0?eur(laborAmt(x)):'—';
+  });
+  if(curTab==='presupuesto'){renderBudget();dirty=false}else dirty=true;
+}
+function touch(){save();refresh()}
+
+/* ---------- eventos ---------- */
+function show(tab){
+  curTab=tab;
+  $$('.tabpane').forEach(s=>s.hidden=s.id!=='tab-'+tab);
+  $$('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
+  if(tab==='presupuesto'&&dirty){renderBudget();dirty=false}
+  if(tab==='guardados')renderSaved();
+  if(tab==='precios')renderCatalog();
+  try{history.replaceState(null,'','#'+tab)}catch(e){}
+  window.scrollTo(0,0);
+}
+$$('.tab').forEach(b=>b.addEventListener('click',()=>show(b.dataset.tab)));
+
+$('#tab-piezas').addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.p){S.project[t.dataset.p]=t.value;S.example=false;$('#exampleNote').hidden=true;touch();return}
+  const row=t.closest('[data-id]');if(!row)return;const k=t.dataset.k;if(!k||k==='mode'||k==='matId')return;
+  if(row.classList.contains('line')){
+    const l=S.lines.find(x=>x.id===row.dataset.id);if(!l)return;
+    if(k==='name')l.name=t.value;
+    else if(k==='L'||k==='W')l[k]=Math.max(0,parseNum(t.value))*f();
+    else if(k==='qty')l.qty=Math.max(0,parseNum(t.value));
+    touch();
+  }else{
+    const list=row.dataset.list==='labor'?S.labor:S.extras,x=list.find(y=>y.id===row.dataset.id);if(!x)return;
+    if(k==='name')x.name=t.value;else x[k]=Math.max(0,parseNum(t.value));touch();
+  }
+});
+$('#tab-piezas').addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='p-unit'){S.unit=t.value;renderLines();touch();return}
+  if(t.dataset.p){S.project[t.dataset.p]=t.value;touch();return}
+  if(t.dataset.k==='matId'){
+    const l=S.lines.find(x=>x.id===t.closest('.line').dataset.id);l.matId=t.value;renderLines();touch();
+  }else if(t.dataset.k==='mode'){
+    const x=S.labor.find(y=>y.id===t.closest('.mini').dataset.id);x.mode=t.value;renderSub();touch();
+  }
+});
+let confirmT;
+function armed(btn,label,fn){
+  if(btn.dataset.armed){clearTimeout(confirmT);delete btn.dataset.armed;btn.textContent=btn.dataset.label;fn();return}
+  btn.dataset.armed='1';btn.dataset.label=btn.textContent;btn.textContent=label;
+  confirmT=setTimeout(()=>{delete btn.dataset.armed;btn.textContent=btn.dataset.label},4000);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act],[data-copy]');if(!b)return;
+  if(b.dataset.copy){copyText({client:clientText,shop:shopText,cut:cutText}[b.dataset.copy]());return}
+  const a=b.dataset.act;
+  if(a==='wiz')openWizard(b.dataset.wiz);
+  else if(a==='wiz-close'){const bx=$('#wizardBox');bx.hidden=true;bx.innerHTML=''}
+  else if(a==='wiz-add')wizardAdd();
+  else if(a==='add-line'){
+    const m=S.materials.find(x=>x.kind==='board')||S.materials[0];
+    const l=newLine('',m?m.id:'',0,0,1);S.lines.push(l);S.example=false;renderLines();touch();const i=$('#n-'+l.id);if(i)i.focus();
+  }
+  else if(a==='del-line'){S.lines=S.lines.filter(x=>x.id!==b.closest('.line').dataset.id);renderLines();touch()}
+  else if(a==='add-labor-h'){S.labor.push({id:uid(),name:'',mode:'h',qty:0,price:0});renderSub();touch()}
+  else if(a==='add-labor-u'){S.labor.push({id:uid(),name:'',mode:'u',qty:1,price:0});renderSub();touch()}
+  else if(a==='add-extra'){S.extras.push({id:uid(),name:'',amount:0});renderSub();touch()}
+  else if(a==='del-sub'){const r=b.closest('[data-id]'),k=r.dataset.list==='labor'?'labor':'extras';S[k]=S[k].filter(x=>x.id!==r.dataset.id);renderSub();touch()}
+  else if(a==='new-budget')newBudget();
+  else if(a==='open')openBudget(b.closest('.brow').dataset.id);
+  else if(a==='dup')dupBudget(b.closest('.brow').dataset.id);
+  else if(a==='del-budget'){const id=b.closest('.brow').dataset.id;armed(b,'¿Seguro?',()=>delBudget(id))}
+  else if(a==='pdf')downloadPdf();
+  else if(a==='add-mat'){
+    const m={id:uid(),name:'Material nuevo',kind:'board',price:0,L:2440,W:1220,t:16,grain:false};S.materials.push(m);
+    matFilter='';$('#m-filter').value='';renderMats();touch();const r=$(`#matList [data-id="${m.id}"]`);if(r)r.scrollIntoView({block:'center'});
+  }
+  else if(a==='del-mat'){
+    const id=b.closest('.mrow').dataset.id,n=DB.budgets.reduce((s,bg)=>s+(bg.id===S.cur.id?S.lines:bg.lines).filter(l=>l.matId===id).length,0);
+    if(n){$('#matMsg').textContent='No se puede borrar: se usa en '+n+' '+pl(n,'pieza','piezas')+' de tus presupuestos. Cámbiala primero en la pestaña Piezas.';return}
+    S.materials=S.materials.filter(m=>m.id!==id);$('#matMsg').textContent='';renderMats();renderCatalog();touch();
+  }
+  else if(a==='cat-add'){
+    const [ci,pi]=b.dataset.i.split('-').map(Number),p=CATALOG[ci].items[pi],m=presetToMat(p);
+    S.materials.push(m);matFilter=p[0];$('#m-filter').value=p[0];renderMats();renderCatalog();touch();
+    toast('Añadido. Ponle tu precio arriba.');
+    const r=$(`#matList [data-id="${m.id}"]`);if(r){r.scrollIntoView({behavior:'smooth',block:'center'});const pi2=$('[data-m=price]',r);if(pi2)pi2.focus()}
+  }
+  else if(a==='reset-mats')armed(b,'¿Seguro? Pulsa otra vez',()=>{
+    const def=defaultMaterials(),ids=new Set(def.map(m=>m.id));
+    const used=new Set(DB.budgets.flatMap(bg=>(bg.id===S.cur.id?S.lines:bg.lines).map(l=>l.matId)));
+    const extra=S.materials.filter(m=>!ids.has(m.id)&&used.has(m.id));
+    S.materials=def.concat(extra);matFilter='';$('#m-filter').value='';renderMats();renderLines();renderCatalog();touch();toast('Materiales de ejemplo restaurados');
+  });
+  else if(a==='backup'){
+    persist();
+    saveFile('copia-presupuestos-'+today()+'.json',new Blob([JSON.stringify(DB)],{type:'application/json'}))
+      .then(()=>toast('Copia guardada'),e=>{if(!e||e.code!=='declined')toast('No se pudo guardar la copia')});
+  }
+  else if(a==='logo-del'){S.company.logo='';S.company.logoW=S.company.logoH=0;syncLogo();touch()}
+});
+$('#tab-precios').addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='m-filter'){matFilter=t.value;renderMats();return}
+  if(t.dataset.c){S.company[t.dataset.c]=t.value;touch();return}
+  if(t.dataset.s){S.settings[t.dataset.s]=Math.max(0,parseNum(t.value));touch();return}
+  const row=t.closest('.mrow');if(!row||!t.dataset.m)return;
+  const m=mat(row.dataset.id),k=t.dataset.m;if(!m)return;
+  if(k==='name'||k==='unit')m[k]=t.value;
+  else if(k==='grain')m.grain=t.checked;
+  else if(k==='barLen')m.barLen=Math.max(0,parseNum(t.value))*1000;
+  else if(k==='kind')return;
+  else m[k]=Math.max(0,parseNum(t.value));
+  touch();
+});
+$('#tab-precios').addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.m==='kind'){
+    const m=mat(t.closest('.mrow').dataset.id);m.kind=t.value;
+    if(m.kind==='board'){m.L=m.L||2440;m.W=m.W||1220;m.t=m.t||16}
+    if(m.kind==='bar')m.barLen=m.barLen||3000;
+    if(m.kind==='area')m.pack=m.pack||0;
+    if(m.kind==='unit')m.unit=m.unit||'ud';
+    renderMats();renderLines();touch();return
+  }
+  if(t.id==='b-restore'&&t.files&&t.files[0]){
+    const fr=new FileReader();
+    fr.onload=()=>{
+      try{
+        const o=JSON.parse(fr.result);
+        if(!o||!Array.isArray(o.budgets)||!o.budgets.length||!Array.isArray(o.materials)||!o.settings)throw new Error('formato');
+        initState(o);syncProject();syncSettings();renderLines();renderSub();renderMats();renderCatalog();persist();refresh();show('guardados');
+        toast('Copia restaurada: '+o.budgets.length+' '+pl(o.budgets.length,'presupuesto','presupuestos'));
+      }catch(err){toast('Ese archivo no es una copia válida')}
+    };
+    fr.readAsText(t.files[0]);t.value='';return;
+  }
+  if(t.id==='c-logo'&&t.files&&t.files[0]){
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const sc=Math.min(1,500/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*sc)),h=Math.max(1,Math.round(img.height*sc));
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
+        S.company.logo=cv.toDataURL('image/png');S.company.logoW=w;S.company.logoH=h;syncLogo();touch();toast('Logo guardado');
+      };
+      img.onerror=()=>toast('No se pudo leer esa imagen');
+      img.src=fr.result;
+    };
+    fr.readAsDataURL(t.files[0]);t.value='';
+  }
+});
+let toastT;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},2400)}
+
+/* ---------- arranque ---------- */
+initState();
+syncProject();syncSettings();renderLines();renderSub();renderMats();renderCatalog();
+refresh();
+const h=(location.hash||'').slice(1);
+show(['guardados','piezas','presupuesto','precios'].includes(h)?h:'piezas');
+})();
+</script>
+<script>
+if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+</script>
+</body>
+</html>
