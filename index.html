@@ -1060,8 +1060,6 @@ function buildPdf(){
   return doc;
 }
 async function saveFile(name,blob){
-  let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
-  if(dl){await dl.save({filename:name,data:blob});return}
   /* en el móvil, abre el menú de compartir (WhatsApp, correo, guardar en archivos) */
   try{
     const file=new File([blob],name,{type:blob.type||'application/octet-stream'});
