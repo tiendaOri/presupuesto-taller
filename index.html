@@ -555,7 +555,7 @@ const dims=(a,b)=>toDisp(a)+' × '+toDisp(b)+' '+S.unit;
 const refOf=b=>new Date(b.created).getFullYear()+'-'+String(b.num).padStart(3,'0');
 
 /* ---------- cálculo ---------- */
-function packBoards(items,m,kerf){
+function packBoardsShelf(items,m,kerf){
   let BL=m.L,BW=m.W;const grain=!!m.grain;
   if(!grain&&BW>BL){const t=BL;BL=BW;BW=t}
   const over=[],list=[];
@@ -581,18 +581,114 @@ function packBoards(items,m,kerf){
   const used=list.reduce((s,p)=>s+p.a*p.b,0);
   return{boards,over,BL,BW,usage:boards.length?used/(boards.length*BL*BW):0};
 }
+/* Comprobación final del reparto: todas las piezas, dentro del tablero y sin solaparse (dejando el hueco de la sierra) */
+function packValid(res,list,used,kerf){
+  const all=res.boards.flatMap(b=>b.shelves.flatMap(s=>s.items));
+  if(all.length!==list.length)return false;
+  if(Math.abs(all.reduce((s,p)=>s+p.a*p.b,0)-used)>1e-6)return false;
+  for(const b of res.boards){
+    const its=b.shelves.flatMap(s=>s.items);
+    for(let i=0;i<its.length;i++){
+      const p=its[i];
+      if(p.x<0||p.y<0||p.x+p.a>res.BL||p.y+p.b>res.BW)return false;
+      for(let j=i+1;j<its.length;j++){const q=its[j];
+        if(p.x<q.x+q.a+kerf&&q.x<p.x+p.a+kerf&&p.y<q.y+q.b+kerf&&q.y<p.y+p.b+kerf)return false}
+    }
+  }
+  return true;
+}
+const boardPieces=p=>p.boards.reduce((n,b)=>n+b.shelves.reduce((k,s)=>k+s.items.length,0),0);
+function packBoards(items,m,kerf){
+  let BL=m.L,BW=m.W;const grain=!!m.grain;
+  if(!grain&&BW>BL){const t=BL;BL=BW;BW=t}
+  const over=[],list=[];
+  for(const it of items){
+    let a=it.a,b=it.b;
+    if(!grain&&b>a){const t=a;a=b;b=t}
+    if(a>BL||b>BW){over.push(it);continue}
+    list.push({a,b,label:it.label});
+  }
+  const used=list.reduce((s,p)=>s+p.a*p.b,0),CL=BL+kerf,CW=BW+kerf;
+  const fin=(boards)=>({boards,over,BL,BW,usage:boards.length?used/(boards.length*BL*BW):0});
+  if(!list.length)return fin([]);
+  /* 1) el reparto por tiras de siempre (siempre es una candidata) */
+  const cands=[];
+  const old=packBoardsShelf(items,m,kerf);
+  cands.push(old.boards.map(b=>({items:b.shelves.flatMap(s=>s.items)})));
+  /* 2) tiras en el otro sentido (solo si la veta no importa) */
+  if(!grain){
+    const t=packBoardsShelf(items.map(it=>({a:it.b,b:it.a,label:it.label})),{L:BW,W:BL,grain:false},kerf);
+    cands.push(t.boards.map(b=>({items:b.shelves.flatMap(s=>s.items).map(i=>({x:i.y,y:i.x,a:i.b,b:i.a,label:i.label}))})));
+  }
+  /* 3) cortes pasantes con varios criterios y órdenes */
+  const run=(order,fit,split)=>{
+    const boards=[];
+    for(const p of order){
+      const opts=[[p.a+kerf,p.b+kerf]];if(!grain&&p.a!==p.b)opts.push([p.b+kerf,p.a+kerf]);
+      let best=null;
+      for(let bi=0;bi<boards.length;bi++){const fr=boards[bi].free;
+        for(let fi=0;fi<fr.length;fi++){const r=fr[fi];
+          for(const [w,h] of opts){if(w<=r.w&&h<=r.h){
+            const s0=fit?r.w*r.h-w*h:Math.min(r.w-w,r.h-h),s1=fit?Math.min(r.w-w,r.h-h):Math.max(r.w-w,r.h-h);
+            if(!best||s0<best.s0||(s0===best.s0&&s1<best.s1))best={bi,fi,w,h,s0,s1}}}}}
+      let bd,r,w,h;
+      if(best){bd=boards[best.bi];r=bd.free[best.fi];w=best.w;h=best.h;bd.free.splice(best.fi,1)}
+      else{bd={free:[],placed:[]};boards.push(bd);r={x:0,y:0,w:CL,h:CW};[w,h]=opts[0]}
+      bd.placed.push({x:r.x,y:r.y,a:w-kerf,b:h-kerf,label:p.label});
+      const rw=r.w-w,rh=r.h-h,horiz=split?rw<rh:rw>=rh;
+      const A=horiz?{x:r.x+w,y:r.y,w:rw,h:h}:{x:r.x+w,y:r.y,w:rw,h:r.h};
+      const B=horiz?{x:r.x,y:r.y+h,w:r.w,h:rh}:{x:r.x,y:r.y+h,w:w,h:rh};
+      if(A.w>0&&A.h>0)bd.free.push(A);if(B.w>0&&B.h>0)bd.free.push(B);
+    }
+    return boards.map(b=>({items:b.placed}));
+  };
+  const sorts=[(p,q)=>q.a*q.b-p.a*p.b,(p,q)=>Math.max(q.a,q.b)-Math.max(p.a,p.b)||q.a*q.b-p.a*p.b,(p,q)=>q.b-p.b||q.a-p.a,(p,q)=>q.a-p.a||q.b-p.b];
+  for(const so of sorts){const order=list.slice().sort(so);for(const fit of [0,1])for(const split of [0,1])cands.push(run(order,fit,split))}
+  /* variaciones de orden, siempre las mismas (semilla fija) */
+  let seed=20260101;const rnd=()=>{seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^(seed>>>15),1|seed);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296};
+  const trials=Math.max(0,Math.min(300,Math.floor(6000/list.length)));
+  const base=list.slice().sort(sorts[0]);
+  for(let k=0;k<trials;k++){
+    const order=base.map(p=>({p,k:Math.max(p.a,p.b)*(0.7+0.6*rnd())})).sort((x,y)=>y.k-x.k).map(x=>x.p);
+    cands.push(run(order,k%2,(k>>1)%2));
+  }
+  /* se queda con la que necesita menos tableros; a igualdad, la que deja el sobrante más concentrado */
+  const score=c=>{let sq=0;for(const b of c){const u=b.items.reduce((s,i)=>s+i.a*i.b,0)/(BL*BW);sq+=u*u}return[c.length,-sq]};
+  let best=null,bs=null;
+  for(const c of cands){const s=score(c);if(!best||s[0]<bs[0]||(s[0]===bs[0]&&s[1]<bs[1]-1e-12)){best=c;bs=s}}
+  const res=fin(best.map(b=>({shelves:[{items:b.items}]})));
+  return packValid(res,list,used,kerf)?res:old;
+}
 function packBars(items,m,kerf){
   const BL=m.barLen,over=[],list=[];
   for(const it of items){if(it.L>BL)over.push(it);else list.push(it)}
-  list.sort((p,q)=>q.L-p.L);
-  const bars=[];
-  for(const p of list){
-    const e=p.L+kerf;let bar=bars.find(b=>b.used+e<=BL+kerf);
-    if(!bar){bar={used:0,items:[]};bars.push(bar)}
-    bar.items.push({L:p.L,label:p.label});bar.used+=e;
-  }
   const used=list.reduce((s,p)=>s+p.L,0);
-  return{bars,over,BL,usage:bars.length?used/(bars.length*BL):0};
+  const fin=bars=>({bars,over,BL,usage:bars.length?used/(bars.length*BL):0});
+  if(!list.length)return fin([]);
+  const run=(order,bestFit)=>{
+    const bars=[];
+    for(const p of order){
+      const e=p.L+kerf;let t=null;
+      for(const b of bars){const rest=BL+kerf-b.used;if(e<=rest){if(!bestFit){t=b;break}if(!t||rest<BL+kerf-t.used)t=b}}
+      if(!t){t={used:0,items:[]};bars.push(t)}
+      t.items.push({L:p.L,label:p.label});t.used+=e;
+    }
+    return bars;
+  };
+  const base=list.slice().sort((p,q)=>q.L-p.L);
+  const cands=[run(base,false),run(base,true)];
+  let seed=20260202;const rnd=()=>{seed=(seed+0x6D2B79F5)|0;let t=Math.imul(seed^(seed>>>15),1|seed);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296};
+  const trials=Math.max(0,Math.min(300,Math.floor(6000/list.length)));
+  for(let k=0;k<trials;k++){
+    const order=base.map(p=>({p,k:p.L*(0.8+0.4*rnd())})).sort((x,y)=>y.k-x.k).map(x=>x.p);
+    cands.push(run(order,k%2===0));
+  }
+  const score=c=>{let sq=0;for(const b of c){const u=b.items.reduce((s,i)=>s+i.L,0)/BL;sq+=u*u}return[c.length,-sq]};
+  let best=cands[0],bs=score(best);
+  for(const c of cands){const s=score(c);if(s[0]<bs[0]||(s[0]===bs[0]&&s[1]<bs[1]-1e-12)){best=c;bs=s}}
+  /* comprobación final: si algo no cuadra se usa el reparto sencillo de siempre */
+  const ok=best.every(b=>b.used<=BL+kerf)&&best.reduce((s,b)=>s+b.items.length,0)===list.length;
+  return fin(ok?best:cands[0]);
 }
 const qOf=l=>Math.max(0,Math.round(+l.qty||0));
 function calcMat(m,lines){
@@ -974,17 +1070,19 @@ function renderBudget(){
       const m=x.mat,pr=m.kind==='unit'?eur(m.price)+'/'+esc(m.unit):m.kind==='area'?eur(m.price)+'/m²':eur(m.price);
       const u=x.usage==null?'—':`<span class="pill${x.usage<0.6?' low':''}">${Math.round(x.usage*100)} %</span>`;
       return`<tr><td>${esc(m.name)}</td><td>${x.buyText}</td><td>${u}</td><td class="r">${pr}</td><td class="r"><b>${eur(x.cost)}</b></td></tr>`}).join('')+
-    `<tr><td colspan="4"><b>Total materiales</b></td><td class="r"><b>${eur(T.mats)}</b></td></tr></tbody></table>`;
+    `<tr><td colspan="4"><b>Total materiales</b></td><td class="r"><b>${eur(T.mats)}</b></td></tr></tbody></table>`+R.filter(x=>x.pack&&x.pack.over&&x.pack.over.length).map(x=>`<p class="small" style="color:var(--warn)">⚠ ${esc(x.mat.name)}: ${x.pack.over.length} ${pl(x.pack.over.length,'pieza no cabe','piezas no caben')} y no ${pl(x.pack.over.length,'está contada','están contadas')} en la compra. Revisa las medidas en la pestaña Piezas.</p>`).join('');
   $('#cuts').innerHTML=R.map(x=>{
     const m=x.mat;
     if(m.kind==='board'){
-      const p=x.pack;if(!p.boards.length)return'';
-      return`<details class="cut" open><summary>${esc(m.name)}<small>${x.buyText} de ${dims(m.L,m.W)} · aprovechamiento ${Math.round(x.usage*100)} %</small></summary>
+      const p=x.pack;if(!p.boards.length&&!p.over.length)return'';
+      const np=boardPieces(p),chk=p.over.length?`<p class="small" style="color:var(--warn)">⚠ ${p.over.length} ${pl(p.over.length,'pieza no cabe','piezas no caben')} en un tablero de ${dims(m.L,m.W)} y no ${pl(p.over.length,'está','están')} en esta lista ni en la compra: ${esc(p.over.map(i=>i.label).join(', '))}.</p>`:`<p class="small">✓ ${np} ${pl(np,'pieza','piezas')} en ${p.boards.length} ${pl(p.boards.length,'tablero','tableros')}: cuadra con la lista de compra (${x.buyText}).</p>`;
+      return`<details class="cut" open><summary>${esc(m.name)}<small>${x.buyText} de ${dims(m.L,m.W)} · aprovechamiento ${Math.round(x.usage*100)} %</small></summary>${chk}
         <div class="boards">${p.boards.map((bd,i)=>`<div><p class="bcap">Tablero ${i+1}</p>${boardSvg(bd,p.BL,p.BW,i+1)}</div>`).join('')}</div></details>`;
     }
     if(m.kind==='bar'){
-      const p=x.pack;if(!p.bars.length)return'';
-      return`<details class="cut"><summary>${esc(m.name)}<small>${x.buyText} · aprovechamiento ${Math.round(x.usage*100)} %</small></summary>
+      const p=x.pack;if(!p.bars.length&&!p.over.length)return'';
+      const np=p.bars.reduce((n,b)=>n+b.items.length,0),chk=p.over.length?`<p class="small" style="color:var(--warn)">⚠ ${p.over.length} ${pl(p.over.length,'pieza es','piezas son')} más ${pl(p.over.length,'larga','largas')} que la barra y no ${pl(p.over.length,'está','están')} en esta lista ni en la compra: ${esc(p.over.map(i=>i.label).join(', '))}.</p>`:`<p class="small">✓ ${np} ${pl(np,'pieza','piezas')} en ${p.bars.length} ${pl(p.bars.length,'barra','barras')}: cuadra con la lista de compra (${x.buyText}).</p>`;
+      return`<details class="cut"><summary>${esc(m.name)}<small>${x.buyText} · aprovechamiento ${Math.round(x.usage*100)} %</small></summary>${chk}
         <div class="boards">${p.bars.map((b,i)=>`<div><p class="bcap">Barra ${i+1}</p>${barSvg(b,p.BL)}</div>`).join('')}</div></details>`;
     }
     return'';
@@ -1014,7 +1112,7 @@ function shopText(){
 function cutText(){
   const L=['LISTA DE CORTE'+(S.project.obra?' · '+S.project.obra:''),'(medidas en '+S.unit+')'];
   LAST.R.forEach(x=>{
-    if(x.kind==='board'){L.push('','== '+x.mat.name+' ('+dims(x.mat.L,x.mat.W)+')');
+    if(x.kind==='board'){L.push('','== '+x.mat.name+' ('+dims(x.mat.L,x.mat.W)+')');L.push(boardPieces(x.pack)+' '+pl(boardPieces(x.pack),'pieza','piezas')+' en '+x.pack.boards.length+' '+pl(x.pack.boards.length,'tablero','tableros')+' · cuadra con la lista de compra');if(x.pack.over.length)L.push('AVISO: '+x.pack.over.length+' '+pl(x.pack.over.length,'pieza no cabe','piezas no caben')+' y no '+pl(x.pack.over.length,'está','están')+' en la lista: '+x.pack.over.map(i=>i.label).join(', '));
       x.pack.boards.forEach((bd,i)=>L.push('Tablero '+(i+1)+': '+grouped(bd.shelves.flatMap(s=>s.items),it=>toDisp(it.a)+'×'+toDisp(it.b)+' '+it.label)))}
     else if(x.kind==='bar'){L.push('','== '+x.mat.name+' (barras de '+n1(x.mat.barLen/1000)+' m)');
       x.pack.bars.forEach((b,i)=>L.push('Barra '+(i+1)+': '+grouped(b.items,it=>toDisp(it.L)+' '+it.label)))}
